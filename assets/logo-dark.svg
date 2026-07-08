@@ -1,0 +1,17 @@
+<svg width="440" height="120" viewBox="0 0 440 120" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="AnimateIt">
+  <defs>
+    <linearGradient id="aiTealD" x1="0" y1="0" x2="120" y2="120" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#3ce0cb"/>
+      <stop offset="1" stop-color="#28d2bc"/>
+    </linearGradient>
+  </defs>
+  <!-- Mark: elevated surface + subtle teal border so it reads on a dark page -->
+  <rect x="5" y="5" width="110" height="110" rx="26" fill="#232a3d" stroke="rgba(60,224,203,0.35)" stroke-width="1.5"/>
+  <path d="M40 38 L74 60 L40 82 Z" fill="#3ce0cb" opacity="0.30"/>
+  <path d="M52 38 L86 60 L52 82 Z" fill="#3ce0cb" opacity="0.55"/>
+  <path d="M64 36 L98 60 L64 84 Z" fill="url(#aiTealD)"/>
+  <!-- Wordmark: light on dark -->
+  <text x="140" y="76" font-family="'League Spartan', 'Helvetica Neue', Arial, sans-serif" font-size="52" font-weight="800" letter-spacing="-1">
+    <tspan fill="#eef2f4">Animate</tspan><tspan fill="#3ce0cb">It</tspan>
+  </text>
+</svg>
