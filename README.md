@@ -3,8 +3,8 @@
 </p>
 
 <p align="center">
-  <strong>Videos as code.</strong> Declarative, frame-driven video compositions for Rails,
-  rendered with headless Chromium (Playwright) + FFmpeg.
+  <strong>Remotion for Rails.</strong> Make videos from your app's own components and data,
+  written in Ruby — no React, no video editor, no After Effects.
 </p>
 
 <p align="center">
@@ -15,10 +15,19 @@
 
 ---
 
-AnimateIt lets you describe a video as a Ruby class and a HAML template, preview it
-frame-by-frame in a bundled **Studio** UI, and render it to MP4/WebM/MOV/GIF. Each
-frame is a real web page — so you get the full power of CSS, your app's own
-components, and real data — captured by a headless browser and stitched with FFmpeg.
+[Remotion](https://www.remotion.dev/) made it possible to build videos in React.
+**AnimateIt brings the same idea to Ruby on Rails** — without React, a JavaScript
+project, or a video editor.
+
+You describe a video as a Ruby class and a HAML template, preview it frame-by-frame
+in a bundled **Studio** UI, and render it to MP4/WebM/MOV/GIF. Every frame is a real
+web page, so you get the full power of CSS and — crucially — **your app's own
+components, styles, fonts, and real data**. A headless browser captures each frame
+and FFmpeg stitches them into a video.
+
+It's built for indie hackers and Rails developers who want to promote their projects
+with polished product demos, launch clips, and social ads — reusing the UI they've
+already built, staying in Ruby, and skipping the whole "learn a video editor" detour.
 
 ## Requirements
 
@@ -161,6 +170,16 @@ RUN_RENDER_SMOKE=1 bundle exec rspec spec/rendering_spec.rb
 Specs run against a minimal host app in `spec/dummy` — no external services, no
 database.
 
+## Credits
+
+AnimateIt is inspired by [**Remotion**](https://www.remotion.dev) — the framework
+that pioneered making videos programmatically in React. AnimateIt brings that
+"videos as code" idea to the Ruby on Rails ecosystem, natively and without React.
+Huge thanks to the Remotion team for the inspiration.
+
 ## License
 
-[MIT](MIT-LICENSE).
+AnimateIt is released under the [**MIT License**](MIT-LICENSE) — free and open source,
+with **no restrictions on commercial or business use**. Individuals, startups,
+agencies, and companies of any size can use it in open-source and closed-source
+projects at no cost, forever. No paid tiers, no seat limits.

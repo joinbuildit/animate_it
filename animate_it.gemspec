@@ -4,13 +4,18 @@ Gem::Specification.new do |spec|
   spec.name        = "animate_it"
   spec.version     = AnimateIt::VERSION
   spec.authors     = ["growth-constant"]
-  spec.summary     = "Declarative, frame-driven video compositions for Rails, rendered with Playwright + FFmpeg"
+  spec.summary     = "Remotion for Rails — make videos with your app's own assets, in Ruby. No React required."
   spec.description = <<~DESC
-    AnimateIt is a mountable Rails engine for building videos as code. Declare a
-    composition (size, fps, duration, beats, audio), describe each frame with a
-    Ruby + HAML scene, preview it in the bundled Studio UI, and render it to
-    MP4/WebM/MOV/GIF with a headless Chromium (Playwright) frame capture piped
-    through FFmpeg.
+    AnimateIt brings Remotion-style programmatic video to Ruby on Rails — without
+    React or a JavaScript project. Build videos as code: a Ruby class plus a HAML
+    template, using your app's own components, styles, fonts, and real data. Every
+    frame is a real web page, so anything you can render in your app you can put in
+    a video. Preview frame-by-frame in the bundled Studio, then export to
+    MP4/WebM/MOV/GIF with headless Chromium (Playwright) + FFmpeg.
+
+    Built for indie hackers and Rails developers who want to promote their projects
+    with polished product demos, launch clips, and social ads — without leaving
+    Ruby, hiring an editor, or learning After Effects.
   DESC
   spec.homepage    = "https://github.com/growth-constant/animate_it"
   spec.license     = "MIT"
