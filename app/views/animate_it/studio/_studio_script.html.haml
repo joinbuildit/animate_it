@@ -1,0 +1,273 @@
+:javascript
+  (() => {
+    const studio = document.querySelector(".animate-it-studio");
+    if (!studio) return;
+
+    const frameBaseUrl = studio.dataset.frameBaseUrl;
+    const duration = Number(studio.dataset.duration);
+    const fps = Number(studio.dataset.fps);
+    const lastFrame = duration - 1;
+    const iframe = document.getElementById("animate_it_frame");
+    const scrubber = document.getElementById("animate_it_scrubber");
+    const frameInput = document.getElementById("animate_it_frame_input");
+    const frameLabel = document.getElementById("animate_it_frame_label");
+    const playButton = document.getElementById("animate_it_play");
+    const speedInput = document.getElementById("animate_it_speed");
+    const propsInput = document.getElementById("animate_it_props_json");
+
+    const clampFrame = (value) => Math.max(0, Math.min(lastFrame, Number(value) || 0));
+    const initialParams = new URLSearchParams(window.location.search);
+    let frame = clampFrame(initialParams.get("frame"));
+    let timer = null;
+
+    const syncFrameUrl = () => {
+      const url = new URL(window.location.href);
+      url.searchParams.set("frame", frame);
+      window.history.replaceState(window.history.state, "", url);
+    };
+
+    const propsQuery = () => {
+      const params = new URLSearchParams({ pp: "disable" });
+      if (propsInput && propsInput.value.trim() !== "") {
+        params.set("props_json", propsInput.value);
+      }
+      return `?${params.toString()}`;
+    };
+
+    // --- Persistent-document rendering ------------------------------------
+    // The first frame loads the full styled document into the iframe once, so
+    // its <head>/stylesheets are parsed a single time. Every later frame is
+    // applied by fetching the lightweight `?only=body` fragment and swapping
+    // it into the live DOM — no document teardown, so no reload flash.
+    let docReady = false;
+    iframe.addEventListener("load", () => { docReady = true; });
+
+    const fragmentUrl = (n) => `${frameBaseUrl}/${n}${propsQuery()}&only=body`;
+
+    const fullReload = (n) => {
+      docReady = false;
+      iframe.src = `${frameBaseUrl}/${n}${propsQuery()}`;
+    };
+
+    // Fragment cache (url -> html) plus in-flight de-duplication, so a frame is
+    // fetched at most once. A cached frame applies synchronously — no network
+    // wait, no first-visit hitch. Keyed by url, which includes the props, so a
+    // props change naturally misses; we also clear it on props edits below.
+    const PREFETCH_AHEAD = 16;
+    const fragmentCache = new Map();
+    const pending = new Map();
+
+    const requestFragment = (url) => {
+      if (fragmentCache.has(url)) return Promise.resolve(fragmentCache.get(url));
+      if (pending.has(url)) return pending.get(url);
+      const p = fetch(url)
+        .then((res) => { if (!res.ok) throw new Error(`fragment ${res.status}`); return res.text(); })
+        .then((html) => { fragmentCache.set(url, html); pending.delete(url); return html; })
+        .catch((err) => { pending.delete(url); throw err; });
+      pending.set(url, p);
+      return p;
+    };
+
+    const prefetchAhead = (n) => {
+      for (let i = 1; i <= PREFETCH_AHEAD; i++) {
+        const f = n + i;
+        if (f > lastFrame) break;
+        requestFragment(fragmentUrl(f)).catch(() => {}); // fire-and-forget warm-up
+      }
+    };
+
+    const applyFragment = (html) => {
+      const target = iframe.contentDocument && iframe.contentDocument.querySelector(".animate-it-frame");
+      if (!target) return false;
+      target.outerHTML = html;
+      return true;
+    };
+
+    // Latest-wins: a slow fetch for an earlier frame must not overwrite a
+    // newer one that already painted.
+    let paintToken = 0;
+    const paintFragment = (n) => {
+      const token = ++paintToken;
+      const url = fragmentUrl(n);
+      if (fragmentCache.has(url)) {
+        if (!applyFragment(fragmentCache.get(url))) fullReload(n);
+        prefetchAhead(n);
+        return;
+      }
+      requestFragment(url)
+        .then((html) => {
+          if (token !== paintToken) return; // superseded by a newer frame
+          if (!applyFragment(html)) fullReload(n);
+          prefetchAhead(n);
+        })
+        .catch(() => { if (token === paintToken) fullReload(n); });
+    };
+
+    const renderFrame = (n) => {
+      if (docReady) paintFragment(n);
+      else fullReload(n); // bootstrap (or recover) with the full document
+    };
+
+    const playheads = document.querySelectorAll("[data-animate-it-playhead]");
+    const audios = Array.from(document.querySelectorAll("audio[data-from-frame]"));
+
+    // Resolve each segment's window once. A non-positive duration means "active
+    // to the end" — matches Timeline::Segment#active_at? on the Ruby side.
+    const audioWindow = (el) => {
+      const start = Number(el.dataset.fromFrame) || 0;
+      const rawLen = Number(el.dataset.durationFrames);
+      const len = rawLen > 0 ? rawLen : duration - start;
+      return { start, len };
+    };
+
+    // Background beds loop to cover their (possibly file-shorter) window;
+    // one-shot SFX self-limit so a long file can't bleed past its few frames
+    // even when the frame loop lurches behind real time.
+    audios.forEach((el) => {
+      const { len } = audioWindow(el);
+      const isBed = el.dataset.track === "background";
+      el.loop = isBed;
+      el.volume = Math.min(1, Math.max(0, Number(el.dataset.gain ?? 1)));
+      // currentTime is seeked to (frame - start)/fps, so it reads 0 at the
+      // window start; the clip is done once it passes the window length.
+      el.addEventListener("timeupdate", () => {
+        if (isBed) return;
+        if (el.currentTime >= len / fps && !el.paused) el.pause();
+      });
+    });
+
+    const updatePlayheads = (currentFrame) => {
+      const pct = duration <= 1 ? 0 : (currentFrame / (duration - 1)) * 100;
+      playheads.forEach((el) => { el.style.left = `${pct}%`; });
+    };
+
+    // Audio is audible only while actually playing — seeking/scrubbing is
+    // silent. Each element plays only inside its own window, seeked to the
+    // matching offset, so you hear exactly what belongs at the current frame.
+    const syncAudio = (currentFrame, isPlaying) => {
+      for (const el of audios) {
+        const { start, len } = audioWindow(el);
+        const within = currentFrame >= start && currentFrame < start + len;
+        if (within && isPlaying) {
+          // Seek only on (re)start — when the clip is paused. Once it's
+          // playing, leave it on its own real-time clock: re-seeking every
+          // frame to chase the setInterval-driven frame counter (which lags
+          // real time) is what chops the audio.
+          if (el.paused) {
+            el.currentTime = (currentFrame - start) / fps;
+            el.play().catch(() => {});
+          }
+        } else if (!el.paused) {
+          el.pause();
+        }
+      }
+    };
+
+    const setFrame = (nextFrame, { keepAudioState = false } = {}) => {
+      frame = clampFrame(nextFrame);
+      scrubber.value = frame;
+      frameInput.value = frame;
+      frameLabel.textContent = frame;
+      renderFrame(frame);
+      syncFrameUrl();
+      updatePlayheads(frame);
+      syncAudio(frame, keepAudioState && timer !== null);
+    };
+
+    const stop = () => {
+      if (timer) window.cancelAnimationFrame(timer);
+      timer = null;
+      playButton.textContent = "Play";
+      audios.forEach((el) => { if (!el.paused) el.pause(); });
+    };
+
+    // Wall-clock playback. The frame is derived from elapsed real time, so the
+    // picture skips frames it can't keep up with rather than the clock slipping
+    // behind — and audio (on its own real clock) stays in sync. Morphing the
+    // body in place is fast and needs no load-gating, so the loop stays simple.
+    const play = () => {
+      stop();
+      playButton.textContent = "Pause";
+      const speed = Number(speedInput.value) || 1;
+      const startFrame = frame >= lastFrame ? 0 : frame;
+      const startWall = performance.now();
+      const tick = () => {
+        if (timer === null) return;
+        const next = clampFrame(Math.floor(startFrame + ((performance.now() - startWall) / 1000) * fps * speed));
+        if (next !== frame) setFrame(next, { keepAudioState: true });
+        if (next >= lastFrame) { stop(); return; }
+        timer = window.requestAnimationFrame(tick);
+      };
+      timer = window.requestAnimationFrame(tick);
+      syncAudio(frame, true);
+    };
+
+    scrubber.addEventListener("input", (event) => setFrame(event.target.value));
+    frameInput.addEventListener("change", (event) => setFrame(event.target.value));
+    propsInput?.addEventListener("change", () => {
+      fragmentCache.clear();
+      pending.clear();
+      setFrame(frame);
+    });
+
+    document.querySelectorAll("[data-motion-step]").forEach((button) => {
+      button.addEventListener("click", () => {
+        stop();
+        setFrame(frame + Number(button.dataset.motionStep));
+      });
+    });
+
+    document.querySelectorAll("[data-motion-seek]").forEach((el) => {
+      el.addEventListener("click", () => {
+        stop();
+        setFrame(Number(el.dataset.motionSeek));
+      });
+    });
+
+    playButton.addEventListener("click", () => {
+      if (timer) {
+        stop();
+      } else {
+        play();
+      }
+    });
+
+    window.addEventListener("keydown", (event) => {
+      // Only the props textarea is real text entry — let it keep every key.
+      // The scrubber/number/select shouldn't swallow the transport shortcuts.
+      if (event.target.matches("textarea")) return;
+
+      if (event.key === " ") {
+        // Toggle directly and drop focus first: calling playButton.click()
+        // while the button (or scrubber) is focused lets the browser also
+        // natively activate it on Space, double-toggling to a no-op.
+        event.preventDefault();
+        if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+        timer === null ? play() : stop();
+        return;
+      }
+
+      // Arrows: defer to native behavior when a control is focused (range /
+      // number / select all move on their own), step frames otherwise.
+      if (event.target.matches("input, select")) return;
+
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        stop();
+        setFrame(frame - 1);
+      }
+
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        stop();
+        setFrame(frame + 1);
+      }
+    });
+
+    window.AnimateItStudio = {
+      setFrame,
+      currentFrame: () => frame
+    };
+
+    setFrame(frame);
+  })();

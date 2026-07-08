@@ -1,0 +1,35 @@
+%section.animate-it-preview-pane
+  %header.animate-it-header
+    %div
+      %h2= composition.id
+      %p= "#{composition.width}x#{composition.height}, #{composition.fps}fps, #{composition.duration_in_frames} frames"
+    .animate-it-frame-readout
+      %strong#animate_it_frame_label 0
+      %span= "/ #{last_frame}"
+
+  %turbo-frame#animate_it_preview.animate-it-preview
+    %iframe#animate_it_frame{
+      title: "#{composition.id} frame preview",
+      src: "#{frame_base_url}/0?pp=disable",
+      style: "width: min(100%, #{composition.width}px); aspect-ratio: #{composition.width} / #{composition.height};"
+    }
+
+  %section.animate-it-timeline{ aria: { label: "Frame controls" } }
+    %input#animate_it_scrubber{ type: "range", min: 0, max: last_frame, value: 0, step: 1 }
+
+    .animate-it-controls
+      %button{ type: "button", data: { motion_step: "-1" } } Previous Frame
+      %button#animate_it_play{ type: "button" } Play
+      %button{ type: "button", data: { motion_step: "1" } } Next Frame
+      %label
+        Frame
+        %input#animate_it_frame_input{ type: "number", min: 0, max: last_frame, value: 0 }
+      %label
+        Speed
+        %select#animate_it_speed
+          %option{ value: "0.25" } 0.25x
+          %option{ value: "0.5" } 0.5x
+          %option{ value: "1", selected: true } 1x
+          %option{ value: "2" } 2x
+
+  = render "timeline_lanes", composition: composition

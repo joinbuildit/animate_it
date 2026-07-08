@@ -1,0 +1,17 @@
+!!!
+%html{ lang: "en" }
+  %head
+    %title= content_for?(:title) ? yield(:title) : "Animate It Studio"
+    %meta{ name: "viewport", content: "width=device-width, initial-scale=1" }
+    %meta{ name: "turbo-cache-control", content: "no-cache" }
+    = csrf_meta_tags
+    -# Studio JS/CSS come from the host app's asset pipeline. Emit each tag only
+    -# when the host provides it, so the gem still renders in apps that don't run
+    -# importmap/turbo/propshaft. (The video renderer captures the filmstrip
+    -# endpoint directly and doesn't depend on this layout's assets.)
+    - if respond_to?(:javascript_importmap_tags)
+      = javascript_importmap_tags
+      = javascript_import_module_tag "@hotwired/turbo-rails"
+      = stylesheet_link_tag "application", "data-turbo-track": "reload"
+  %body
+    = yield

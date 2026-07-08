@@ -1,0 +1,60 @@
+name: Release
+
+# Every push to main runs CI; if it passes and lib/animate_it/version.rb names a
+# version not yet on RubyGems, publish it (via OIDC trusted publishing) and cut a
+# matching tag + GitHub Release. Bump the version in a commit to trigger a release.
+on:
+  push:
+    branches: [main]
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  release:
+    needs: ci
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # push the tag + create the GitHub Release
+      id-token: write # OIDC token for RubyGems trusted publishing
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4.8"
+          bundler-cache: true
+
+      - name: Read gem version
+        id: version
+        run: echo "value=$(ruby -r ./lib/animate_it/version -e 'print AnimateIt::VERSION')" >> "$GITHUB_OUTPUT"
+
+      - name: Check whether this version is already on RubyGems
+        id: check
+        run: |
+          published=$(gem list -r -e -a animate_it 2>/dev/null \
+            | grep -oE '\(.*\)' | tr -d '()' | tr ',' '\n' | tr -d ' ' \
+            | grep -Fxq "${{ steps.version.outputs.value }}" && echo true || echo false)
+          echo "published=$published" >> "$GITHUB_OUTPUT"
+          echo "animate_it ${{ steps.version.outputs.value }} already published: $published"
+
+      - name: Configure RubyGems trusted publishing
+        if: steps.check.outputs.published == 'false'
+        uses: rubygems/configure-rubygems-credentials@main
+
+      - name: Build and push gem
+        if: steps.check.outputs.published == 'false'
+        run: |
+          gem build animate_it.gemspec
+          gem push animate_it-${{ steps.version.outputs.value }}.gem
+
+      - name: Tag and create GitHub Release
+        if: steps.check.outputs.published == 'false'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="v${{ steps.version.outputs.value }}"
+          git tag "$tag"
+          git push origin "$tag"
+          gh release create "$tag" --title "$tag" --generate-notes

@@ -1,0 +1,33 @@
+<svg width="1280" height="640" viewBox="0 0 1280 640" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1280" y2="640" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f3fbfa"/>
+      <stop offset="1" stop-color="#ffffff"/>
+    </linearGradient>
+    <linearGradient id="teal" x1="0" y1="0" x2="140" y2="140" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#28d2bc"/>
+      <stop offset="1" stop-color="#1fb0a3"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="640" fill="url(#bg)"/>
+
+  <!-- Mark -->
+  <g transform="translate(430, 150)">
+    <rect x="0" y="0" width="140" height="140" rx="32" fill="#1a1d29"/>
+    <path d="M44 44 L88 70 L44 96 Z" fill="#28d2bc" opacity="0.18"/>
+    <path d="M60 44 L104 70 L60 96 Z" fill="#28d2bc" opacity="0.38"/>
+    <path d="M76 42 L116 70 L76 98 Z" fill="url(#teal)"/>
+  </g>
+  <!-- Wordmark -->
+  <text x="600" y="258" font-family="'League Spartan','Helvetica Neue',Arial,sans-serif" font-size="88" font-weight="800" letter-spacing="-2">
+    <tspan fill="#1a1d29">Animate</tspan><tspan fill="#28d2bc">It</tspan>
+  </text>
+
+  <!-- Tagline -->
+  <text x="640" y="400" text-anchor="middle" font-family="'Helvetica Neue',Arial,sans-serif" font-size="34" font-weight="500" fill="#3d484a">
+    Videos as code — declarative Rails compositions
+  </text>
+  <text x="640" y="446" text-anchor="middle" font-family="'Helvetica Neue',Arial,sans-serif" font-size="34" font-weight="500" fill="#3d484a">
+    rendered with Playwright + FFmpeg
+  </text>
+</svg>

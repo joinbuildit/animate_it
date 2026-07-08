@@ -1,0 +1,34 @@
+-# Visual timeline beneath the preview/scrubber. One row per track, chips
+-# positioned by from_frame / duration_in_frames. Clicking a chip seeks the
+-# scrubber via the data-motion-seek hook in _studio_script.
+- total_frames = composition.duration_in_frames
+- format_time = ->(frame) { secs = frame.to_f / composition.fps; sprintf("%d:%02d.%02d", (secs / 60).to_i, secs.to_i % 60, ((secs % 1) * 100).to_i) }
+
+%section.animate-it-timeline-lanes{ aria: { label: "Track timeline" } }
+  %header.animate-it-timeline-lanes__header
+    %h3 Tracks
+    .animate-it-timeline-lanes__ruler
+      - 5.times do |i|
+        - tick_frame = (total_frames * i / 4.0).round
+        %span.animate-it-timeline-lanes__tick{ style: "left: #{(i / 4.0 * 100).round(2)}%;" }
+          = format_time.call(tick_frame)
+
+  - composition.timeline.tracks.each do |track|
+    .animate-it-timeline-lanes__row{ data: { track: track } }
+      .animate-it-timeline-lanes__label= track.to_s
+      .animate-it-timeline-lanes__lane
+        %span.animate-it-timeline-lanes__playhead{ data: { animate_it_playhead: true } }
+        - composition.timeline.segments_for_track(track).each do |seg|
+          - dur = seg.duration_frames || (total_frames - seg.from_frame)
+          - left_pct = (seg.from_frame.to_f / total_frames * 100).round(3)
+          - width_pct = (dur.to_f / total_frames * 100).round(3)
+          - chip_label = seg.name.to_s.split("::").last
+          - chip_class = ["animate-it-timeline-lanes__chip", "animate-it-timeline-lanes__chip--#{seg.kind}"]
+          %button{ type: "button",
+                   class: chip_class,
+                   data: { motion_seek: seg.from_frame, kind: seg.kind, from: seg.from_frame, duration: dur },
+                   style: "left: #{left_pct}%; width: #{width_pct}%;",
+                   title: "#{chip_label} · #{format_time.call(seg.from_frame)} → #{format_time.call(seg.from_frame + dur)}" }
+            %span.animate-it-timeline-lanes__chip-name= chip_label
+            %span.animate-it-timeline-lanes__chip-time
+              = "#{format_time.call(seg.from_frame)} → #{format_time.call(seg.from_frame + dur)}"

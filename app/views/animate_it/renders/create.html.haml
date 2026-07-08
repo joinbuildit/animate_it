@@ -1,0 +1,9 @@
+%turbo-frame#animate_it_render_result
+  %p= "Render #{@render_id} queued for #{@composition.id}."
+  - if @output_relative_path.present?
+    %p
+      %strong Output:
+      %code= @output_relative_path
+    %p{ style: "color: #6b7280;" } Progress will appear in the rendering jobs panel below.
+  - else
+    %p{ style: "color: #b45309;" } Render queued, but no output path was returned.

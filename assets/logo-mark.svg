@@ -1,0 +1,15 @@
+<svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="AnimateIt">
+  <defs>
+    <linearGradient id="aiTeal" x1="0" y1="0" x2="120" y2="120" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#28d2bc"/>
+      <stop offset="1" stop-color="#1fb0a3"/>
+    </linearGradient>
+  </defs>
+  <!-- Frame / canvas -->
+  <rect x="4" y="4" width="112" height="112" rx="26" fill="#1a1d29"/>
+  <!-- Motion-trail echoes of the play triangle -->
+  <path d="M40 38 L74 60 L40 82 Z" fill="#28d2bc" opacity="0.18"/>
+  <path d="M52 38 L86 60 L52 82 Z" fill="#28d2bc" opacity="0.38"/>
+  <!-- Lead play triangle -->
+  <path d="M64 36 L98 60 L64 84 Z" fill="url(#aiTeal)"/>
+</svg>

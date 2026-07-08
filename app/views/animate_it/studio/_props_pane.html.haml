@@ -1,0 +1,14 @@
+%aside.animate-it-props
+  %h2 Props
+  %turbo-frame#animate_it_props
+    = render "animate_it/props/form", composition:, props_json:
+
+  %turbo-frame#animate_it_render_result
+    = form_with url: animate_it_path("/compositions/#{composition.id}/renders"), method: :post, html: { style: "margin-top: 1rem;" }, data: { turbo_frame: "animate_it_render_result" } do
+      = button_tag "Render Video", type: "submit", data: { turbo_submits_with: "Rendering..." }
+
+  %section.animate-it-renders
+    %h3 Rendering jobs
+    = turbo_stream_from AnimateIt::RenderStore::CHANNEL
+    %p.animate-it-stream-status Turbo Stream connected for render progress.
+    = AnimateIt::RenderStore.html.html_safe

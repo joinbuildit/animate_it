@@ -1,0 +1,54 @@
+!!!
+%html{ lang: "en" }
+  %head
+    %title= "#{@composition.id} frame #{@frame}"
+    %meta{ name: "viewport", content: "width=#{@composition.width}, initial-scale=1" }
+    -# Host-declared render stylesheets (AnimateIt.config.render_stylesheets).
+    -# Compositions that re-use host partials (e.g. a real _match_row.haml)
+    -# expect the host's component CSS — star-ratings, avatar sizing, match-row
+    -# layout, fonts. The host normally queues these via `add_stylesheet(...)` /
+    -# `add_component_stylesheet(...)` and emits them with `render_*_stylesheets`,
+    -# but that queue lives on the view context, which the engine's sub-render
+    -# boundary doesn't carry across — so the host lists the bundles in the
+    -# initializer and they're loaded statically here.
+    - AnimateIt.config.render_stylesheets.each do |sheet|
+      = stylesheet_link_tag sheet, "data-turbo-track": "reload"
+    :css
+      html, body {
+        width: #{@composition.width}px;
+        height: #{@composition.height}px;
+        margin: 0;
+        overflow: hidden;
+        background: transparent;
+      }
+
+      body {
+        /* Apply per-composition browser zoom (Composition.zoom). Default 1.0
+           is a no-op. With a smaller `size(...)` viewport, a >1.0 zoom
+           magnifies content uniformly without changing the output frame. */
+        zoom: #{@composition.zoom};
+      }
+
+      body, main, .hero-render-canvas {
+        background-color: transparent !important;
+      }
+
+      .animate-it-frame {
+        position: relative;
+        width: #{@composition.width}px;
+        height: #{@composition.height}px;
+        overflow: hidden;
+      }
+  %body
+    .animate-it-frame{ data: { frame: @frame, composition: @composition.id } }
+      = @content
+    -# Host-app stylesheets queued via `add_stylesheet(...)` / ViewComponent
+    -# `with_stylesheet` accumulate on the view context during content
+    -# rendering. Emit them at the end of body so the host's component CSS
+    -# (star-ratings, match-row, etc.) reaches the document. CSS still
+    -# applies regardless of position. These accumulator helpers are host-app
+    -# provided; emit them only when the host defines them.
+    - if respond_to?(:render_page_stylesheets)
+      = render_page_stylesheets
+    - if respond_to?(:render_component_stylesheets)
+      = render_component_stylesheets

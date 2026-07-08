@@ -1,0 +1,53 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Render an AnimateIt composition: one Playwright browser pointed at the
+# filmstrip endpoint scrubs frames in-page, screenshots each, and FFmpeg
+# stitches them into a video.
+#
+# Run from your Rails app root (the app whose app/videos/ defines the
+# composition), with a Rails server already running at ANIMATE_IT_HOST:
+#
+#   bundle exec render_animate_it_video my-composition
+#   bundle exec render_animate_it_video my-composition tmp/my-composition.mp4
+#
+# Host resolution: ANIMATE_IT_HOST, then the legacy RAILS_MOTION_HOST, then
+# RAILS_HOST, then http://127.0.0.1:3000.
+
+env_path = File.expand_path("config/environment.rb", Dir.pwd)
+unless File.exist?(env_path)
+  abort "render_animate_it_video: run this from your Rails app root (no config/environment.rb in #{Dir.pwd})."
+end
+require env_path
+
+composition_id = ARGV[0]
+abort "Usage: render_animate_it_video <composition-id> [output-path]" if composition_id.to_s.empty?
+
+host = ENV["ANIMATE_IT_HOST"].to_s.dup
+host = ENV["RAILS_MOTION_HOST"].to_s if host.empty?
+host = ENV["RAILS_HOST"].to_s if host.empty?
+host = "http://127.0.0.1:3000" if host.empty?
+
+AnimateIt.load_compositions!
+composition = AnimateIt.registry.fetch(composition_id)
+
+extension = AnimateIt::VideoRenderer::EXTENSION_FOR_FORMAT.fetch(composition.output_format) || "mp4"
+output_path = ARGV[1] || Rails.root.join("tmp/animate_it/#{composition_id}.#{extension}").to_s
+
+puts "Rendering #{composition.id} (#{composition.width}x#{composition.height}, #{composition.fps}fps, #{composition.duration_in_frames} frames)"
+
+started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+output = AnimateIt::VideoRenderer.new(
+  composition:,
+  host:,
+  output_path:
+).render(
+  on_progress: lambda do |frame, total|
+    print "\r  frame #{frame} / #{total}"
+    $stdout.flush
+  end
+)
+puts ""
+elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at
+
+puts format("Wrote %<output>s in %<elapsed>.2fs", output: output, elapsed: elapsed)

@@ -1,0 +1,8 @@
+%turbo-frame#animate_it_props
+  = render "form", composition: @composition, props_json: @props_json
+  :javascript
+    if (window.AnimateItStudio) {
+      window.AnimateItStudio.setFrame(window.AnimateItStudio.currentFrame());
+    } else {
+      document.querySelector("#animate_it_preview iframe")?.setAttribute("src", #{@frame_url.to_json});
+    }

@@ -1,0 +1,8 @@
+- content_for :title, "Animate It Studio"
+
+%main{ style: "padding: 2rem; font-family: system-ui, sans-serif;" }
+  %h1 Animate It Studio
+  %p Registered compositions
+
+  %turbo-frame#animate_it_compositions
+    = render "composition_list", compositions: @compositions

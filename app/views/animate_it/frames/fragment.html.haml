@@ -1,0 +1,6 @@
+-# Bare frame body for the studio's persistent-document preview. Mirrors the
+-# .animate-it-frame element in show.html.haml so it can be morphed in place,
+-# but emits no <head>/stylesheets — those are parsed once by the persistent
+-# document. The full-document show.html.haml stays the render pipeline's path.
+.animate-it-frame{ data: { frame: @frame, composition: @composition.id } }
+  = @content

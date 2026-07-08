@@ -1,0 +1,65 @@
+!!!
+%html{ lang: "en" }
+  %head
+    %title= "#{@composition.id} filmstrip (#{@composition.duration_in_frames} frames)"
+    %meta{ name: "viewport", content: "width=#{@composition.width}, initial-scale=1" }
+    -# Host-declared render stylesheets (AnimateIt.config.render_stylesheets) so
+    -# compositions that re-use host partials get the host's component CSS. See
+    -# frames/show.html.haml for the rationale.
+    - AnimateIt.config.render_stylesheets.each do |sheet|
+      = stylesheet_link_tag sheet, "data-turbo-track": "reload"
+    :css
+      html, body {
+        width: #{@composition.width}px;
+        height: #{@composition.height}px;
+        margin: 0;
+        overflow: hidden;
+        background: transparent;
+      }
+      body {
+        /* See frames/show.html.haml — Composition.zoom magnifies content
+           uniformly without changing the output viewport. */
+        zoom: #{@composition.zoom};
+      }
+      body, main, .hero-render-canvas {
+        background-color: transparent !important;
+      }
+      .animate-it-frame {
+        position: absolute;
+        inset: 0;
+        width: #{@composition.width}px;
+        height: #{@composition.height}px;
+        overflow: hidden;
+        display: none !important;
+        visibility: hidden;
+      }
+      .animate-it-frame.is-active {
+        display: block !important;
+        visibility: visible;
+      }
+  %body
+    - (0...@composition.duration_in_frames).each do |frame|
+      .animate-it-frame{ class: ('is-active' if frame.zero?), data: { frame: frame } }
+        = @composition.render_frame(self, frame: frame, props: @props)
+    -# See app/views/animate_it/frames/show.html.haml for why these are at the
+    -# bottom of body. Host-app accumulator helpers — emit only when present.
+    - if respond_to?(:render_page_stylesheets)
+      = render_page_stylesheets
+    - if respond_to?(:render_component_stylesheets)
+      = render_component_stylesheets
+    :javascript
+      (() => {
+        const frames = Array.from(document.querySelectorAll(".animate-it-frame"));
+        let active = frames[0] || null;
+        window.__animateIt = {
+          totalFrames: frames.length,
+          setFrame(n) {
+            const target = frames[n];
+            if (!target || target === active) return;
+            if (active) active.classList.remove("is-active");
+            target.classList.add("is-active");
+            active = target;
+          }
+        };
+        document.documentElement.dataset.animateItReady = "1";
+      })();

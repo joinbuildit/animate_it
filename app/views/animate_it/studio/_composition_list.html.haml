@@ -1,0 +1,7 @@
+- if compositions.empty?
+  %p{ style: "color: #666;" } No AnimateIt compositions registered yet.
+- else
+  %ul
+    - compositions.each do |composition|
+      %li
+        = link_to composition.id, animate_it_path("/compositions/#{composition.id}"), data: { turbo_frame: "_top" }

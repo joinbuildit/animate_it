@@ -1,0 +1,83 @@
+def animate_it_render_host
+  # Prefer ANIMATE_IT_HOST; fall back to the legacy RAILS_MOTION_HOST, then
+  # RAILS_HOST, then localhost.
+  ENV["ANIMATE_IT_HOST"].presence ||
+    ENV["RAILS_MOTION_HOST"].presence ||
+    ENV["RAILS_HOST"].presence ||
+    "http://127.0.0.1:3000"
+end
+
+namespace :animate_it do
+  desc <<~DESC
+    Render a single composition's declared outputs to their asset paths.
+
+    Usage:
+      bin/rails 'animate_it:render[<composition-id>]'
+      bin/rails 'animate_it:render[<composition-id>,<start>..<end>]'   # render a subset of frames
+      bin/rails 'animate_it:render[<composition-id>,<start>-<end>]'    # same, dash-separated
+
+    When a frame range is given, animated outputs (mp4/webm/gif) are
+    encoded from just those frames — the result is a clipped preview
+    starting at frame <start>. Still PNG outputs still render at their
+    declared `frame:` and are skipped if that frame is outside the range.
+  DESC
+  task :render, %i[id frames] => :environment do |_t, args|
+    raise "Usage: bin/rails 'animate_it:render[<composition-id>,(<start>..<end>)?]'" if args[:id].blank?
+
+    AnimateIt.load_compositions!
+    composition = AnimateIt.registry.fetch(args[:id])
+    host = animate_it_render_host
+    frame_range = parse_frame_range(args[:frames], composition)
+    puts "Rendering frames #{frame_range.first}..#{frame_range.last} of #{composition.duration_in_frames}" if frame_range
+    written = AnimateIt::AssetRenderer.render_composition(
+      composition, host: host, on_progress: progress_logger, frame_range: frame_range
+    )
+    puts ""
+    written.compact.each { |path| puts "  → #{path.relative_path_from(Rails.root)}" }
+  end
+
+  desc "Render every registered composition's declared outputs"
+  task render_all: :environment do
+    AnimateIt.load_compositions!
+    host = animate_it_render_host
+
+    AnimateIt.compositions.each do |composition|
+      next if composition.outputs.empty?
+
+      label = "output#{"s" unless composition.outputs.size == 1}"
+      puts "Rendering #{composition.id} (#{composition.outputs.size} #{label})"
+      written = AnimateIt::AssetRenderer.render_composition(composition, host: host, on_progress: progress_logger)
+      puts ""
+      written.each { |path| puts "  → #{path.relative_path_from(Rails.root)}" }
+    end
+  end
+
+  # Parse `30..120` / `30-120` / `30` (single frame) into a Range. Returns
+  # nil for blank input, meaning "use the whole composition".
+  def parse_frame_range(raw, composition)
+    return nil if raw.blank?
+
+    if raw.match?(/\A\d+\z/)
+      n = raw.to_i
+      return n..n
+    end
+
+    match = raw.match(/\A(\d+)\s*(?:\.\.|-)\s*(\d+)\z/)
+    raise "Invalid frame range #{raw.inspect}. Use `start..end`, `start-end`, or a single frame number." unless match
+
+    start_frame = match[1].to_i
+    end_frame   = match[2].to_i
+    raise "Frame range start (#{start_frame}) must be <= end (#{end_frame})." if start_frame > end_frame
+
+    max = composition.duration_in_frames - 1
+    end_frame = max if end_frame > max
+    start_frame..end_frame
+  end
+
+  def progress_logger
+    lambda do |frame, total|
+      print "\r  frame #{frame} / #{total}"
+      $stdout.flush
+    end
+  end
+end

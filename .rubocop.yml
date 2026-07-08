@@ -1,0 +1,36 @@
+plugins:
+  - rubocop-rails
+
+AllCops:
+  TargetRubyVersion: 3.4
+  NewCops: enable
+  SuggestExtensions: false
+  Exclude:
+    - "spec/dummy/**/*"
+    - "vendor/**/*"
+    - "bin/**/*"
+    - "exe/**/*"
+
+# Library code favors readable, sometimes long, methods over hard metric caps.
+Metrics:
+  Enabled: false
+
+Style/Documentation:
+  Enabled: false
+
+# The engine was written with double-quoted strings; keep that style.
+Style/StringLiterals:
+  EnforcedStyle: double_quotes
+
+Style/StringLiteralsInInterpolation:
+  EnforcedStyle: double_quotes
+
+Style/FrozenStringLiteralComment:
+  Enabled: false
+
+Layout/LineLength:
+  Max: 140
+
+# HAML/inline-heavy view helpers legitimately build long strings.
+Rails/OutputSafety:
+  Enabled: false

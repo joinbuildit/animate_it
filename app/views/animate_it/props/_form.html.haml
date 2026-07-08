@@ -1,0 +1,3 @@
+= form_with url: animate_it_path("/compositions/#{composition.id}/props"), method: :patch do
+  %textarea#animate_it_props_json{ name: "props_json", rows: 14 }= props_json
+  = button_tag "Update Preview", type: "submit", data: { turbo_submits_with: "Updating..." }

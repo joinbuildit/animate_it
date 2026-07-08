@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_call: # so release.yml can gate on a green run
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4.8"
+          bundler-cache: true
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Install Playwright + Chromium
+        run: |
+          npm install -g playwright@1.61
+          playwright install --with-deps chromium
+
+      - name: Rubocop
+        run: bundle exec rubocop
+
+      - name: RSpec (unit, request, and render smoke)
+        env:
+          CI: "true"
+          RUN_RENDER_SMOKE: "1"
+          PLAYWRIGHT_CLI_EXECUTABLE_PATH: playwright
+        run: bundle exec rspec

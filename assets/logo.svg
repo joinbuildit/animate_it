@@ -1,0 +1,17 @@
+<svg width="440" height="120" viewBox="0 0 440 120" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="AnimateIt">
+  <defs>
+    <linearGradient id="aiTeal2" x1="0" y1="0" x2="120" y2="120" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#28d2bc"/>
+      <stop offset="1" stop-color="#1fb0a3"/>
+    </linearGradient>
+  </defs>
+  <!-- Mark -->
+  <rect x="4" y="4" width="112" height="112" rx="26" fill="#1a1d29"/>
+  <path d="M40 38 L74 60 L40 82 Z" fill="#28d2bc" opacity="0.18"/>
+  <path d="M52 38 L86 60 L52 82 Z" fill="#28d2bc" opacity="0.38"/>
+  <path d="M64 36 L98 60 L64 84 Z" fill="url(#aiTeal2)"/>
+  <!-- Wordmark -->
+  <text x="140" y="76" font-family="'League Spartan', 'Helvetica Neue', Arial, sans-serif" font-size="52" font-weight="800" letter-spacing="-1">
+    <tspan fill="#1a1d29">Animate</tspan><tspan fill="#28d2bc">It</tspan>
+  </text>
+</svg>

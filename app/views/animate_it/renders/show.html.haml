@@ -1,0 +1,10 @@
+%turbo-frame{ id: "animate_it_render_#{@render_id}" }
+  - if @output_path.exist?
+    %p= "Render #{@render_id}"
+    %p
+      %strong Output:
+      %code= @output_relative_path
+    %p
+      = link_to "Open MP4", animate_it_path("/renders/#{@render_id}?download=1"), target: "_blank", rel: "noopener"
+  - else
+    %p= "Render #{@render_id} was not found."
