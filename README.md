@@ -176,6 +176,19 @@ end
 Render concurrency for the Studio's background renderer is tunable via
 `ANIMATE_IT_RENDER_CONCURRENCY` and `ANIMATE_IT_RENDER_STARTS_PER_SECOND`.
 
+## Claude skill
+
+If you use [Claude Code](https://claude.com/claude-code), this repo ships an
+Agent Skill that teaches Claude how to author AnimateIt compositions — the DSL,
+the render pipeline, embedding, rendering your app's real partials, motion
+craft, and the gotchas. Install it into your project's `.claude/skills/`:
+
+```bash
+npx animate-it-skills          # copies the skill into ./.claude/skills
+```
+
+The skill source lives in [`skills/`](skills/).
+
 ## Development
 
 ```bash
