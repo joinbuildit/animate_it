@@ -1,7 +1,8 @@
 module AnimateIt
   class ApplicationController < ActionController::Base
-    # Composition sidecar templates live at app/videos/<composition>/*.html.haml
+    # Composition sidecar templates live at app/videos/<composition>/*.html.*
     # in the host app — outside the engine's view path, so add it explicitly.
+    # Sidecars may be HAML or ERB; Rails' lookup resolves whichever exists.
     prepend_view_path Rails.root.join("app/videos")
 
     # Sidecar templates routinely render host-app partials (e.g. the real

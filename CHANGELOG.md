@@ -6,6 +6,21 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-09
+
+### Added
+- Scene sidecar templates can now be authored in ERB (`canvas.html.erb`) as well
+  as HAML — Rails resolves whichever exists, so HAML and ERB scenes can be mixed
+  in one app.
+- Test matrix across Rails 7.2 and 8.1 on Ruby 3.3 and 3.4, via Appraisal.
+
+### Changed
+- Lowered the minimum supported versions to Rails >= 7.2 and Ruby >= 3.3
+  (previously Rails >= 8.1.3, Ruby >= 3.4).
+- HAML is now a runtime dependency, so the Studio UI and HAML scenes render on
+  any host without the host having to add HAML itself (fixes an ERB-only host
+  crashing when mounting the Studio).
+
 ## [0.1.0] - 2026-07-08
 
 ### Added
@@ -20,5 +35,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `render_animate_it_video` executable and `animate_it:render` rake task.
 - `animate_it:install` generator.
 
-[Unreleased]: https://github.com/growth-constant/animate_it/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/growth-constant/animate_it/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/growth-constant/animate_it/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/growth-constant/animate_it/releases/tag/v0.1.0

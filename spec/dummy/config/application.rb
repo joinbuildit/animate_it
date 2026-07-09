@@ -15,7 +15,9 @@ module Dummy
     # the engine's config/routes.rb as its own — drawing it twice.
     config.root = File.expand_path("..", __dir__)
 
-    config.load_defaults 8.1
+    # Track whichever Rails the active Appraisal gemfile resolved (7.2 or 8.1),
+    # so one dummy app boots correctly under every version in the test matrix.
+    config.load_defaults "#{Rails::VERSION::MAJOR}.#{Rails::VERSION::MINOR}".to_f
 
     config.eager_load = ENV["CI"].present?
     config.consider_all_requests_local = true

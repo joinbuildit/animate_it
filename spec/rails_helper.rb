@@ -21,8 +21,9 @@ RSpec.configure do |config|
     host! "127.0.0.1"
 
     # Unit specs call AnimateIt.reset!, clearing the registry that request specs
-    # rely on. Zeitwerk won't re-run the already-loaded fixture's `id` DSL, so
-    # re-register it directly (idempotent).
+    # rely on. Zeitwerk won't re-run the already-loaded fixtures' `id` DSL, so
+    # re-register them directly (idempotent).
     AnimateIt.register(DummyMotionVideo)
+    AnimateIt.register(DummyErbVideo)
   end
 end

@@ -34,7 +34,7 @@ already built, staying in Ruby, and skipping the whole "learn a video editor" de
 
 ## Requirements
 
-- Ruby >= 3.4, Rails >= 8.1.3
+- Ruby >= 3.3, Rails >= 7.2 (tested against Rails 7.2 and 8.1)
 - **FFmpeg** on the PATH (rendering)
 - **Node + Playwright** with a Chromium build (rendering): `npx playwright install chromium`
 - **HAML** (composition sidecar templates + Studio views)
@@ -111,6 +111,23 @@ CSS-variable bag (`animation_vars`), named `beat`s, and `audio` / `audio_loop`
 tracks are all available. Compositions can render your app's real partials and
 ViewComponents — see `AnimateIt.config.render_stylesheets` below.
 
+### HAML or ERB
+
+Scene sidecar templates can be authored in **HAML** (`canvas.html.haml`) or
+**ERB** (`canvas.html.erb`) — Rails resolves whichever file exists, so you can
+mix engines across scenes. The HAML canvas above is equivalent to:
+
+```erb
+-# app/videos/hello_video/canvas.html.erb
+<style>.title { opacity: var(--title-opacity, 1); font-size: 6rem; font-weight: 800; }</style>
+<div class="stage" style="<%= @vars %>">
+  <div class="title">Hello 👋</div>
+</div>
+```
+
+The gem bundles HAML for its own Studio UI, so you never need to add HAML to your
+app to use it — ERB-only apps work out of the box.
+
 ## Rendering
 
 The renderer needs your Rails **server running** (it drives a real browser against
@@ -168,6 +185,11 @@ bundle exec rubocop
 
 # full render smoke test (needs ffmpeg + Playwright chromium)
 RUN_RENDER_SMOKE=1 bundle exec rspec spec/rendering_spec.rb
+
+# run the suite against a specific Rails version (see Appraisals)
+bundle exec appraisal install
+bundle exec appraisal rails-7.2 rspec
+bundle exec appraisal rails-8.1 rspec
 ```
 
 Specs run against a minimal host app in `spec/dummy` — no external services, no

@@ -9,4 +9,5 @@
 *.gem
 .DS_Store
 Gemfile.lock
+gemfiles/*.gemfile.lock
 node_modules/

@@ -15,8 +15,10 @@ module AnimateIt
     # ----- class-level DSL -----------------------------------------------
     class << self
       # Sidecar template name. Defaults to "canvas" — i.e. a scene whose
-      # composition is `MyHero` looks for `app/videos/my_hero/canvas.html.haml`.
-      # Override to point to a sibling template instead.
+      # composition is `MyHero` looks for `app/videos/my_hero/canvas.html.*`.
+      # The sidecar may be authored in HAML (`canvas.html.haml`) or ERB
+      # (`canvas.html.erb`); Rails resolves whichever exists. Override to point
+      # to a sibling template instead.
       def template(name = nil)
         @template = name.to_s if name
         @template ||= "canvas"
