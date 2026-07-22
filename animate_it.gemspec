@@ -32,6 +32,6 @@ Gem::Specification.new do |spec|
   spec.executables = Dir["exe/*"].map { |f| File.basename(f) }
   spec.require_paths = ["lib"]
 
-  spec.add_dependency "haml", "~> 6.3"
+  spec.add_dependency "haml", ">= 6.3"
   spec.add_dependency "rails", ">= 7.2"
 end
