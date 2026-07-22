@@ -6,6 +6,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- Studio audio is now served with HTTP byte-range support (Accept-Ranges,
+  206 Partial Content). Browsers refuse to seek media served without it, so
+  play-pause-play and scrub-then-play restarted clips from 0:00.
+
 ## [0.3.1] - 2026-07-22
 
 ### Changed
