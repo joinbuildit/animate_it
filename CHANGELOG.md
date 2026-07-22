@@ -6,6 +6,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-07-22
+
+### Fixed
+- Studio playback started from a scrubbed position could seek the audio before
+  its metadata had loaded; the seek silently failed and the clip played from
+  0:00 instead of the playhead offset. The seek is now deferred until
+  `loadedmetadata`.
+- Studio playback now stops on Turbo navigation (`turbo:before-visit`,
+  `turbo:before-cache`) and `pagehide` — Turbo swaps the body without unloading
+  the window, so a detached, still-playing audio element kept sounding under
+  the next page.
+
 ## [0.2.0] - 2026-07-09
 
 ### Added
@@ -35,6 +47,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `render_animate_it_video` executable and `animate_it:render` rake task.
 - `animate_it:install` generator.
 
-[Unreleased]: https://github.com/growth-constant/animate_it/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/growth-constant/animate_it/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/growth-constant/animate_it/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/growth-constant/animate_it/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/growth-constant/animate_it/releases/tag/v0.1.0
