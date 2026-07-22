@@ -141,6 +141,21 @@
       playheads.forEach((el) => { el.style.left = `${pct}%`; });
     };
 
+    // Seeking before the clip's metadata has loaded doesn't stick — it would
+    // start at 0:00 regardless of the scrubbed position. Defer the seek
+    // (recomputed from the then-current frame) until metadata is available.
+    const startAudio = (el) => {
+      const begin = () => {
+        if (timer === null) return; // stopped before metadata arrived
+        const { start, len } = audioWindow(el);
+        if (frame < start || frame >= start + len) return; // playhead left the window
+        el.currentTime = (frame - start) / fps;
+        el.play().catch(() => {});
+      };
+      if (el.readyState >= 1) begin();
+      else el.addEventListener("loadedmetadata", begin, { once: true });
+    };
+
     // Audio is audible only while actually playing — seeking/scrubbing is
     // silent. Each element plays only inside its own window, seeked to the
     // matching offset, so you hear exactly what belongs at the current frame.
@@ -153,10 +168,7 @@
           // playing, leave it on its own real-time clock: re-seeking every
           // frame to chase the setInterval-driven frame counter (which lags
           // real time) is what chops the audio.
-          if (el.paused) {
-            el.currentTime = (currentFrame - start) / fps;
-            el.play().catch(() => {});
-          }
+          if (el.paused) startAudio(el);
         } else if (!el.paused) {
           el.pause();
         }
@@ -263,6 +275,13 @@
         setFrame(frame + 1);
       }
     });
+
+    // Turbo Drive swaps the body without unloading the window: detached
+    // <audio> elements keep playing and the playback loop keeps ticking.
+    // Stop this page's playback before navigating away or caching.
+    document.addEventListener("turbo:before-visit", stop, { once: true });
+    document.addEventListener("turbo:before-cache", stop, { once: true });
+    window.addEventListener("pagehide", stop, { once: true });
 
     window.AnimateItStudio = {
       setFrame,
