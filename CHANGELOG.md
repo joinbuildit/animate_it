@@ -10,6 +10,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Studio audio is now served with HTTP byte-range support (Accept-Ranges,
   206 Partial Content). Browsers refuse to seek media served without it, so
   play-pause-play and scrub-then-play restarted clips from 0:00.
+- Multi-track renders no longer bury quiet tracks: the ffmpeg `amix` mux now
+  passes `normalize=0`, so declared per-segment gains are the only scaling
+  (amix's default divides every input by the track count).
 
 ## [0.3.1] - 2026-07-22
 

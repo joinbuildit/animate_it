@@ -182,7 +182,10 @@ module AnimateIt
         gain = seg.source[:gain] || 1.0
         "[#{i + 1}:a]adelay=#{delay_ms}|#{delay_ms},volume=#{gain}[a#{i}]"
       end
-      mix = "#{audios.length.times.map { |i| "[a#{i}]" }.join}amix=inputs=#{audios.length}:duration=longest[aout]"
+      # normalize=0: amix's default rescales every input by 1/N, which
+      # silently buries a voice-over under a music bed the moment a second
+      # track is declared. Declared gains are the only intended scaling.
+      mix = "#{audios.length.times.map { |i| "[a#{i}]" }.join}amix=inputs=#{audios.length}:duration=longest:normalize=0[aout]"
       [legs, mix].flatten.join(";")
     end
 
