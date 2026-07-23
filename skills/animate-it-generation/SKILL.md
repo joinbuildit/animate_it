@@ -262,6 +262,10 @@ The DSL is the easy part; a composition that renders cleanly can still be flat o
 - **Be specific.** Use your product's real feature names and claims; ban generic SaaS filler ("streamline your workflow").
 - **Easing & staging** (Disney's principles, adapted): entrances `ease-out` (arrive fast, settle gently), exits `ease-in`; never linear for motion (only for progress bars); keep deformation subtle (`scale(0.95–1.05)`, never `scale(0)`); one focal point at a time; dim/quiet the background behind a focal reveal; stagger groups by ~30–80ms, never more.
 - **Justified motion.** Every animation answers "why does this move?" When unsure whether motion helps, the strongest move is often to delete it.
+- **Put the key line on the resting frame.** The final frame is what viewers sit on between loops — the persuasion line belongs on the endcard, not a transient mid-video overlay (a pill visible <1s never lands).
+- **Repeat one visual device for comparisons.** A stacked comparison reads instantly when every item uses the *same* device with one variable flipped (e.g. rotated verdict stamps: red "TIME-CONSUMING ~25 min" → red "REPETITIVE ~10 min" → brand-color "EFFORTLESS ~2 min"). The viewer decodes the device once; each repeat is free.
+- **Never leave product UI mid-state.** A progress bar stuck at 1/2 or a recorder mid-recording reads as broken — end every UI story on its real completion state.
+- **Match-cut a logo between scenes.** Keep an invisible in-flow placeholder (`visibility: hidden`) reserving the landing slot on the endcard, fly an absolutely-positioned twin into it (position/scale/rotation vars), crossfading dark/light variants as the background changes.
 
 **A starting timeline** (adapt): `Hook (2–3s) → Reveal (2–4s) → 1–3 sharp highlights (5–12s) → Payoff/logo (2–4s)`.
 
@@ -311,6 +315,8 @@ Trade-off: you lose the auto-generated `[data-anim]` CSS and bind `animation_var
 - **GIF can't render once audio is declared** (`format=gif doesn't support audio`). Render the MP4 first (it leaves PNGs in `tmp/animate_it/<id>/`), then build the GIF from those frames directly: `ffmpeg -framerate 30 -i frame-%05d.png -vf "fps=12,scale=640:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128[p];[b][p]paletteuse" -loop 0 out.gif`.
 - **`background: transparent` fights app body styles.** The engine frame layout already forces `body, main, .hero-render-canvas { background-color: transparent !important }`; render inside it.
 - **Playwright is a dev-only dependency.** The renderer lazy-requires it, so production boot / asset precompile never touch it.
+- **Never put HAML `-#` comments inside a `:css` filter.** They emit as literal text, and CSS error recovery silently swallows the *next* rule — a style block just stops applying with no error anywhere. Use `/* */` inside filters.
+- **Verify frames visually before declaring done.** Screenshot key frames headlessly — `chrome --headless --screenshot=out.png "<studio-host>/compositions/<id>/frame/<n>"` (path is `/frame/<n>`, singular) — and look at them. Layout bugs (overlaps, clipping, doubled elements) are invisible in code and obvious in one image.
 
 ## File references (gem source)
 
