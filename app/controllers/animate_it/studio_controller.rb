@@ -9,6 +9,7 @@ module AnimateIt
       @composition = composition
       @compositions = AnimateIt.compositions
       @frame_base_url = animate_it_path("/compositions/#{@composition.id}/frame")
+      @player_url = animate_it_path("/compositions/#{@composition.id}/player")
       @last_frame = @composition.duration_in_frames - 1
       @props_json = JSON.pretty_generate(@composition.props.defaults)
       @renders = RenderStore.all

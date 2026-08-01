@@ -27,9 +27,13 @@ Gem::Specification.new do |spec|
   spec.metadata["bug_tracker_uri"]       = "#{spec.homepage}/issues"
   spec.metadata["rubygems_mfa_required"] = "true"
 
-  spec.files = Dir["{app,config,lib}/**/*", "MIT-LICENSE", "README.md", "CHANGELOG.md"]
+  spec.files = Dir.chdir(__dir__) do
+    Dir["{app,config,exe,lib}/**/*", "CHANGELOG.md", "MIT-LICENSE", "README.md"].select do |path|
+      File.file?(path)
+    end
+  end
   spec.bindir      = "exe"
-  spec.executables = Dir["exe/*"].map { |f| File.basename(f) }
+  spec.executables = Dir.chdir(__dir__) { Dir["exe/*"].map { |path| File.basename(path) } }
   spec.require_paths = ["lib"]
 
   spec.add_dependency "haml", ">= 6.3"

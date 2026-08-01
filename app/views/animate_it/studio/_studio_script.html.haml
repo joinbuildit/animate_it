@@ -4,6 +4,8 @@
     if (!studio) return;
 
     const frameBaseUrl = studio.dataset.frameBaseUrl;
+    const playerUrl = studio.dataset.playerUrl;
+    const clientDriven = studio.dataset.clientDriven === "true";
     const duration = Number(studio.dataset.duration);
     const fps = Number(studio.dataset.fps);
     const lastFrame = duration - 1;
@@ -15,10 +17,10 @@
     const speedInput = document.getElementById("animate_it_speed");
     const propsInput = document.getElementById("animate_it_props_json");
 
-    const clampFrame = (value) => Math.max(0, Math.min(lastFrame, Number(value) || 0));
+    const clampFrame = (value) => Math.max(0, Math.min(lastFrame, Math.round(Number(value) || 0)));
     const initialParams = new URLSearchParams(window.location.search);
     let frame = clampFrame(initialParams.get("frame"));
-    let timer = null;
+    let animationFrame = null;
 
     const syncFrameUrl = () => {
       const url = new URL(window.location.href);
@@ -103,9 +105,18 @@
         .catch(() => { if (token === paintToken) fullReload(n); });
     };
 
-    const renderFrame = (n) => {
+    const renderLegacyFrame = (n) => {
       if (docReady) paintFragment(n);
       else fullReload(n); // bootstrap (or recover) with the full document
+    };
+
+    const renderFrame = (n) => {
+      if (clientDriven) {
+        const win = iframe.contentWindow;
+        if (win && win.__animateIt) win.__animateIt.setFrame(n);
+      } else {
+        renderLegacyFrame(n);
+      }
     };
 
     const playheads = document.querySelectorAll("[data-animate-it-playhead]");
@@ -120,18 +131,13 @@
       return { start, len };
     };
 
-    // Background beds loop to cover their (possibly file-shorter) window;
-    // one-shot SFX self-limit so a long file can't bleed past its few frames
-    // even when the frame loop lurches behind real time.
     audios.forEach((el) => {
       const { len } = audioWindow(el);
-      const isBed = el.dataset.track === "background";
-      el.loop = isBed;
+      const loops = el.dataset.loop === "true";
+      el.loop = loops;
       el.volume = Math.min(1, Math.max(0, Number(el.dataset.gain ?? 1)));
-      // currentTime is seeked to (frame - start)/fps, so it reads 0 at the
-      // window start; the clip is done once it passes the window length.
       el.addEventListener("timeupdate", () => {
-        if (isBed) return;
+        if (loops) return;
         if (el.currentTime >= len / fps && !el.paused) el.pause();
       });
     });
@@ -141,34 +147,32 @@
       playheads.forEach((el) => { el.style.left = `${pct}%`; });
     };
 
-    // Seeking before the clip's metadata has loaded doesn't stick — it would
-    // start at 0:00 regardless of the scrubbed position. Defer the seek
-    // (recomputed from the then-current frame) until metadata is available.
+    const audioTime = (el, localTime) => {
+      if (el.dataset.loop !== "true" || !Number.isFinite(el.duration) || el.duration <= 0) return localTime;
+      return localTime % el.duration;
+    };
+
     const startAudio = (el) => {
       const begin = () => {
-        if (timer === null) return; // stopped before metadata arrived
+        if (animationFrame === null) return;
         const { start, len } = audioWindow(el);
-        if (frame < start || frame >= start + len) return; // playhead left the window
-        el.currentTime = (frame - start) / fps;
+        if (frame < start || frame >= start + len) return;
+        el.currentTime = audioTime(el, (frame - start) / fps);
         el.play().catch(() => {});
       };
       if (el.readyState >= 1) begin();
       else el.addEventListener("loadedmetadata", begin, { once: true });
     };
 
-    // Audio is audible only while actually playing — seeking/scrubbing is
-    // silent. Each element plays only inside its own window, seeked to the
-    // matching offset, so you hear exactly what belongs at the current frame.
     const syncAudio = (currentFrame, isPlaying) => {
       for (const el of audios) {
         const { start, len } = audioWindow(el);
         const within = currentFrame >= start && currentFrame < start + len;
-        if (within && isPlaying) {
-          // Seek only on (re)start — when the clip is paused. Once it's
-          // playing, leave it on its own real-time clock: re-seeking every
-          // frame to chase the setInterval-driven frame counter (which lags
-          // real time) is what chops the audio.
-          if (el.paused) startAudio(el);
+        if (within) {
+          const time = audioTime(el, (currentFrame - start) / fps);
+          if (!isPlaying && el.readyState >= 1 && Math.abs(el.currentTime - time) > 0.05) el.currentTime = time;
+          if (isPlaying && el.paused) startAudio(el);
+          if (!isPlaying && !el.paused) el.pause();
         } else if (!el.paused) {
           el.pause();
         }
@@ -183,44 +187,63 @@
       renderFrame(frame);
       syncFrameUrl();
       updatePlayheads(frame);
-      syncAudio(frame, keepAudioState && timer !== null);
+      syncAudio(frame, keepAudioState && animationFrame !== null);
     };
 
     const stop = () => {
-      if (timer) window.cancelAnimationFrame(timer);
-      timer = null;
+      if (animationFrame !== null) window.cancelAnimationFrame(animationFrame);
+      animationFrame = null;
       playButton.textContent = "Play";
       audios.forEach((el) => { if (!el.paused) el.pause(); });
     };
 
-    // Wall-clock playback. The frame is derived from elapsed real time, so the
-    // picture skips frames it can't keep up with rather than the clock slipping
-    // behind — and audio (on its own real clock) stays in sync. Morphing the
-    // body in place is fast and needs no load-gating, so the loop stays simple.
     const play = () => {
       stop();
       playButton.textContent = "Pause";
       const speed = Number(speedInput.value) || 1;
-      const startFrame = frame >= lastFrame ? 0 : frame;
-      const startWall = performance.now();
-      const tick = () => {
-        if (timer === null) return;
-        const next = clampFrame(Math.floor(startFrame + ((performance.now() - startWall) / 1000) * fps * speed));
+      const startedAt = window.performance.now();
+      const startedFrame = frame >= lastFrame ? 0 : frame;
+      if (startedFrame !== frame) setFrame(startedFrame);
+      audios.forEach((el) => { el.playbackRate = speed; });
+      const tick = (now) => {
+        if (animationFrame === null) return;
+        const elapsedFrame = startedFrame + Math.floor(((now - startedAt) / 1000) * fps * speed);
+        if (elapsedFrame >= lastFrame) {
+          setFrame(lastFrame, { keepAudioState: true });
+          stop();
+          return;
+        }
+
+        const master = audios.find((el) => !el.paused && el.dataset.loop !== "true");
+        const next = master
+          ? clampFrame((Number(master.dataset.fromFrame) || 0) + Math.floor(master.currentTime * fps))
+          : clampFrame(elapsedFrame);
         if (next !== frame) setFrame(next, { keepAudioState: true });
-        if (next >= lastFrame) { stop(); return; }
-        timer = window.requestAnimationFrame(tick);
+        animationFrame = window.requestAnimationFrame(tick);
       };
-      timer = window.requestAnimationFrame(tick);
+      animationFrame = window.requestAnimationFrame(tick);
       syncAudio(frame, true);
     };
 
-    scrubber.addEventListener("input", (event) => setFrame(event.target.value));
-    frameInput.addEventListener("change", (event) => setFrame(event.target.value));
-    propsInput?.addEventListener("change", () => {
-      fragmentCache.clear();
-      pending.clear();
-      setFrame(frame);
+    scrubber.addEventListener("input", (event) => {
+      stop();
+      setFrame(event.target.value);
     });
+    frameInput.addEventListener("change", (event) => {
+      stop();
+      setFrame(event.target.value);
+    });
+    propsInput?.addEventListener("change", () => {
+      if (clientDriven) {
+        iframe.src = `${playerUrl}${propsQuery()}`;
+      } else {
+        fragmentCache.clear();
+        pending.clear();
+        setFrame(frame);
+      }
+    });
+
+    if (clientDriven) iframe.addEventListener("load", () => renderFrame(frame));
 
     document.querySelectorAll("[data-motion-step]").forEach((button) => {
       button.addEventListener("click", () => {
@@ -237,7 +260,7 @@
     });
 
     playButton.addEventListener("click", () => {
-      if (timer) {
+      if (animationFrame !== null) {
         stop();
       } else {
         play();
@@ -255,7 +278,7 @@
         // natively activate it on Space, double-toggling to a no-op.
         event.preventDefault();
         if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
-        timer === null ? play() : stop();
+        animationFrame === null ? play() : stop();
         return;
       }
 

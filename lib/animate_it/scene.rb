@@ -2,6 +2,7 @@ module AnimateIt
   class Scene
     include AnimationHelpers
     include ViewHelpers
+    include TextEffects
 
     attr_reader :context, :props, :view_context
 
@@ -47,6 +48,29 @@ module AnimateIt
 
       def animations
         @animations ||= AnimationSet.new
+      end
+
+      # Register pure per-frame CSS-variable math for client recording.
+      def track_vars(name = :root, &block)
+        raise ArgumentError, "track_vars requires a block" unless block
+
+        own_var_groups[name.to_sym] = block
+      end
+
+      def var_groups
+        inherited = superclass.respond_to?(:var_groups) ? superclass.var_groups : {}
+        inherited.merge(own_var_groups)
+      end
+
+      def text_track(key, &block)
+        raise ArgumentError, "text_track requires a block" unless block
+
+        own_text_tracks[key.to_sym] = block
+      end
+
+      def text_tracks
+        inherited = superclass.respond_to?(:text_tracks) ? superclass.text_tracks : {}
+        inherited.merge(own_text_tracks)
       end
 
       # Composition class this scene belongs to. Set by the engine when the
@@ -112,6 +136,14 @@ module AnimateIt
         @disable_fragment_caching == true
       end
 
+      def own_var_groups
+        @own_var_groups ||= {}
+      end
+
+      def own_text_tracks
+        @own_text_tracks ||= {}
+      end
+
       # Class-side mirror of ViewHelpers#stub_methods so class-method
       # fixture builders (which run before any Scene instance exists)
       # can also use the helper to define singleton-method stubs on
@@ -165,7 +197,7 @@ module AnimateIt
     # programmatic (no sidecar template) or has multiple acts.
     def body
       tag.div(class: self.class.canvas_class, style: canvas_style) do
-        absolute_fill(style: animation_var_style) do
+        absolute_fill(style: animation_var_style, **animate_wrapper_attributes) do
           parts = []
           parts << generated_animation_styles if self.class.animations.elements.any?
           parts << render_scene_template(self.class.template)
@@ -178,7 +210,7 @@ module AnimateIt
     # get the same wrapper + animation-var div around custom content.
     def with_canvas(&block)
       tag.div(class: self.class.canvas_class, style: canvas_style) do
-        absolute_fill(style: animation_var_style) do
+        absolute_fill(style: animation_var_style, **animate_wrapper_attributes) do
           parts = []
           parts << generated_animation_styles if self.class.animations.elements.any?
           parts << view_context.capture(&block) if block
@@ -189,8 +221,24 @@ module AnimateIt
 
     # CSS var bag computed from this frame's animations. Available inside
     # custom render methods that want extra inline styles.
-    def animation_vars(**extras)
+    def animation_vars(group = nil, **extras)
+      return Style.vars(**evaluate_var_group(group), **extras) if group
+
       Style.vars(**self.class.animations.vars_for(self), **extras)
+    end
+
+    def evaluate_var_group(name)
+      block = self.class.var_groups[name.to_sym]
+      raise Error, "Unknown track_vars group :#{name} on #{self.class}" unless block
+
+      instance_exec(&block)
+    end
+
+    def evaluate_text_track(key)
+      block = self.class.text_tracks[key.to_sym]
+      raise Error, "Unknown text_track :#{key} on #{self.class}" unless block
+
+      instance_exec(&block)
     end
 
     delegate :composition_class, to: :class
@@ -207,6 +255,12 @@ module AnimateIt
 
     def capture(...)
       view_context.capture(...)
+    end
+
+    def animate_wrapper_attributes
+      return {} unless self.class.animations.elements.any?
+
+      { data: { animate_vars: Tracks::Recorder::ANIMATE_GROUP } }
     end
 
     def generated_animation_styles

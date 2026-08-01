@@ -25,5 +25,6 @@ RSpec.configure do |config|
     # re-register them directly (idempotent).
     AnimateIt.register(DummyMotionVideo)
     AnimateIt.register(DummyErbVideo)
+    AnimateIt.register(ClientRuntimeSpecVideo) if defined?(ClientRuntimeSpecVideo)
   end
 end

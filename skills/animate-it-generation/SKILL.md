@@ -1,11 +1,11 @@
 ---
 name: animate-it-generation
-description: Author animated videos, GIFs, and still images with the AnimateIt Rails gem — compositions written as a Ruby class + a HAML or ERB canvas, rendered to MP4/WebM/GIF/PNG via Playwright + FFmpeg. Use when a Rails app needs an animated hero, a product demo, a launch clip, a social ad, or a still hero rendered from the app's own components and data. Covers the composition DSL (`beat`, `animate`, `outputs`, `assets_dir`), the Studio + render pipeline, embedding on a page, rendering real app partials, motion craft, and the common gotchas.
+description: Author animated videos, GIFs, and still images with the AnimateIt Rails gem — compositions written as a Ruby class + a HAML or ERB canvas, played by a deterministic browser track runtime, and rendered to MP4/WebM/GIF/PNG via Playwright + FFmpeg. Use when a Rails app needs an animated hero, a product demo, a launch clip, a social ad, or a still hero rendered from the app's own components and data. Covers the client-driven composition DSL (`client_driven!`, `track_vars`, `text_track`, `animate`, `beat`, and `outputs`), Studio, deterministic verification, embedding, real app partials, audio, and common gotchas.
 ---
 
 # AnimateIt — animation, video, GIF, and still generation
 
-[AnimateIt](https://rubygems.org/gems/animate_it) is a Rails engine that defines frame-driven video compositions in pure Ruby + a HAML **or** ERB canvas and renders them via Playwright (headless Chromium) + FFmpeg. One composition produces multiple output formats from the same source (transparent WebM, opaque MP4, transparent GIF, single-frame PNG). Every frame is a real web page, so anything you can render in your app — components, styles, fonts, real data — you can put in a video.
+[AnimateIt](https://rubygems.org/gems/animate_it) is a Rails engine that defines frame-addressable video compositions in pure Ruby + a HAML **or** ERB canvas and renders them via Playwright (headless Chromium) + FFmpeg. One composition produces multiple output formats from the same source. In the client-driven runtime Rails renders the template once per structural layer, then the browser seeks recorded CSS-variable, text, reveal, and animation tracks for each frame.
 
 Use this skill whenever you need an animated hero, a still hero, a marketing GIF, an animated transparent WebM, a product demo, or a social ad, generated from your own Rails app.
 
@@ -30,10 +30,13 @@ app/videos/<name>_video.rb              ← Composition (timeline + outputs + sc
 app/videos/<name>_video/canvas.html.haml   (or canvas.html.erb)  ← Sidecar template
                        │
                        ▼
-   AnimateIt::Composition + AnimateIt::Scene  ← timeline computes per-frame CSS variables
+   AnimateIt::Composition + AnimateIt::Scene  ← structure + declarative tracks
                        │
                        ▼
-   /animate_it/compositions/<id>/filmstrip  ← Playwright loads this, screenshots each frame
+   Track schema v2 + pre-rendered structural layers
+                       │
+                       ▼
+   /animate_it/compositions/<id>/player  ← one navigation; browser setFrame(n)
                        │
                        ▼
    tmp/animate_it/<id>/frame-NNNNN.png      ← intermediate frames
@@ -48,12 +51,17 @@ app/videos/<name>_video/canvas.html.haml   (or canvas.html.erb)  ← Sidecar tem
    <video> tag in your app's view
 ```
 
+The legacy `/filmstrip` route remains available for compositions that have not
+opted into `client_driven!` and as the independent reference used by
+`animate_it:verify`.
+
 ## Quick start — minimum composition
 
 ```ruby
 # app/videos/feature_hero_video.rb
 class FeatureHeroVideo < AnimateIt::Composition
   id "feature-hero"          # registry key — used in URLs + the render task
+  client_driven!              # render structure once; seek tracks in Chromium
   fps 30
   size 1200, 1300            # width × height in CSS px
   duration 10.seconds
@@ -120,6 +128,7 @@ Class-level on `AnimateIt::Composition`:
 | Method | Purpose |
 |---|---|
 | `id "feature-hero"` | Registry key. Required. Used in URLs + the render task. |
+| `client_driven!` | Use the one-render browser playback runtime. |
 | `fps 30` | Frame rate. |
 | `size 1200, 1300` | Width × height in CSS px. |
 | `zoom 1.1` | CSS `zoom` on `<body>` in the frame layout. Magnifies **layout too** — inner content must fit `(viewport_width − 2×padding) / zoom` or it clips on the right. |
@@ -129,6 +138,8 @@ Class-level on `AnimateIt::Composition`:
 | `outputs do … end` | Per-format destinations — `mp4`, `webm`, `gif`, `mov`, `png_sequence`, `png frame: N`. Pass `to: "..."` to override a path. |
 | `beat :name, at:, length:` | Named time marker. Accepts frames, durations, or time strings. |
 | `props do … end` | Prop schema for parameterized renders (Studio prop editor). |
+| `verification_props({}, {...})` | Props variants checked by `verify` / `verify_all`. |
+| `structure_epochs 90, 180` | Frames where the DOM shape changes; each creates one structural layer. |
 | `audio "clip.mp3", from:, duration:` | Place an audio clip (see Audio, below). |
 | `audio_loop "bg.mp3", duration:, gain:` | Loop background music. |
 | `voice_over "vo.mp3", at: :intro, gain:` | Voice-over aligned to a beat. |
@@ -142,6 +153,9 @@ Class-level on `AnimateIt::Scene`:
 | `template :canvas` | Sidecar name (default `:canvas`). Resolves to `app/videos/<comp>/<name>.html.{haml,erb}`. |
 | `canvas_class "hero-render-canvas"` | Outer wrapper class on the auto-generated `<div>`. |
 | `animate :name do … end` | Declare an animatable `[data-anim="name"]` element. |
+| `track_vars(:root) { {...} }` | Record pure per-frame CSS custom-property values. |
+| `text_track(:count) { ... }` | Record textContent values for `animate_text(:count)`. |
+| `word_reveal` / `punch_reveal` | Declare compact, seekable per-word reveal tracks. |
 
 Inside `animate :name do … end`:
 
@@ -156,9 +170,26 @@ css   :max_height, during: 60..90, from: 0, to: 300, unit: "px"   # anything els
 css   :background, keyframes: { 60 => "white", 90 => "#f3fbfa" }
 ```
 
+For custom multi-act scene bodies, bind sampled variables explicitly:
+
+```ruby
+track_vars(:root) { { card_x: "#{at_global([0, 30], [20, 0])}px" } }
+text_track(:count) { local_frame.to_s }
+
+def body
+  absolute_fill(vars: :root) do
+    safe_join([render_scene_template("canvas"), animate_text(:count)])
+  end
+end
+```
+
+Keep track blocks to pure frame/props math. They run without an Action View
+context during recording. Put partial rendering, tags, and asset helpers in
+`body` or the sidecar template.
+
 ## Rendering
 
-**Prerequisite:** the Rails server must be running so Playwright can load the filmstrip.
+**Prerequisite:** the Rails server must be running so Playwright can load the player.
 
 ```bash
 bin/rails server                          # in one shell
@@ -168,6 +199,13 @@ bin/rails 'animate_it:render[feature-hero,30..120]'  # just a frame range (fast 
 bin/rails 'animate_it:render[feature-hero,80]'       # a single frame
 bin/rails animate_it:render_all                     # every registered composition
 
+# Migration/release gate: compare /player with /filmstrip.
+bin/rails 'animate_it:verify[feature-hero,1]'        # every frame
+bin/rails animate_it:verify_all                     # every client-driven composition + props variant
+
+# Optional reproducibility gate for config/animate_it_assets.yml.
+bin/rails animate_it:preflight
+
 # or the packaged CLI (writes to tmp/animate_it/ by default):
 bundle exec render_animate_it_video feature-hero
 bundle exec render_animate_it_video feature-hero tmp/out.mp4
@@ -176,6 +214,30 @@ bundle exec render_animate_it_video feature-hero tmp/out.mp4
 You can also render from the **Studio** UI (`/animate_it`): open a composition, scrub the timeline, click **Render Video** to watch progress live. A 15s × 30fps composition takes ~3–4 min (450 frames + encodes); the frame-range arg pays for itself when iterating on one moment.
 
 In development, edits to `app/videos/**/*.rb` reload automatically.
+
+### Verification props and track schema
+
+Track documents currently use schema v2, which scopes CSS-variable and text
+bindings to their timeline segment. The player accepts v1 for migration and
+rejects unknown versions. A release gate uses step `1`, declared
+`verification_props`, and an optional command-line matrix:
+
+```bash
+ANIMATE_IT_PROPS_JSON='{"title":"One variant"}' bin/rails 'animate_it:verify[feature-hero,1]'
+ANIMATE_IT_PROPS_MATRIX_JSON='[{}, {"title":"Long edge case"}]' bin/rails animate_it:verify_all
+```
+
+Verification compares RGB and alpha separately and keeps failures in
+`tmp/animate_it/verify`.
+
+### Source-asset manifest
+
+For reproducible local images, music, and voiceovers, add
+`config/animate_it_assets.yml` with a repository-relative path, SHA-256, and
+provenance provider for every source input. AI-generated inputs can also record
+`generated_with_ai`, `model_id`, and `generation_id`. Run
+`bin/rails animate_it:preflight` before verification/rendering. Generated media
+belongs to the host app; it is not shipped inside the gem.
 
 ## Output palette — pick by browser support + transparency need
 
@@ -233,7 +295,8 @@ class HeroScene < AnimateIt::Scene
 end
 ```
 
-**Determinism is three pins** (the renderer treats every frame as an independent request):
+**Determinism is three pins** (legacy filmstrip and verification still render
+independent reference frames, while the player records track values across the timeline):
 1. `seed:` on `fixtures` — pins `Faker::Config.random` before the block runs.
 2. Explicit `id:` / `created_at:` / `updated_at:` / `email:` on every `build_stubbed` — FactoryBot sequences and `SecureRandom` defaults aren't Faker-seeded.
 3. `disable_fragment_caching!` — dev has caching on; a `cache do … end` block keyed on `updated_at` (stable across frames) would serve frame 1's HTML for every frame.
@@ -309,10 +372,10 @@ Trade-off: you lose the auto-generated `[data-anim]` CSS and bind `animation_var
 
 - **MP4 is never transparent.** h.264 `yuv420p` has no alpha; a transparent canvas flattens onto black. Use WebM for transparency.
 - **Stimulus / JS controllers do NOT run inside the captured frame.** Anything a controller would populate at runtime must be rendered by the sidecar directly (or an inline `<script>` that runs before capture). Set `document.documentElement.dataset.animateItReady = "1"` after your DOM mutations — the layout waits on that flag before screenshotting.
-- **CSS keyframe/time-based animations don't sync with discrete frame capture.** Spinners, blinking carets, `::after { animation: … }` all capture the same state every frame. Drive them from a CSS variable you set per-frame from the Scene instead.
+- **Time-based CSS/Web Animations must be deterministic.** Client-driven playback pauses animations and seeks them relative to their structural layer. Prefer AnimateIt's `animate` DSL or tracked CSS variables; verify native animations at their start/end boundaries and after backward seeks.
 - **Beats live on the composition**, not the scene class — declare them at the composition level; scenes look them up by name.
 - **Declaring audio suppresses single-scene auto-mount.** `audio`/`audio_loop`/`voice_over` add a timeline segment, and auto-mount bails when segments exist. Symptom: every frame renders blank. Fix: add an explicit `scene HeroScene` at the **end** of the composition class.
-- **GIF can't render once audio is declared** (`format=gif doesn't support audio`). Render the MP4 first (it leaves PNGs in `tmp/animate_it/<id>/`), then build the GIF from those frames directly: `ffmpeg -framerate 30 -i frame-%05d.png -vf "fps=12,scale=640:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128[p];[b][p]paletteuse" -loop 0 out.gif`.
+- **GIF and PNG outputs are always silent.** Declaring audio no longer blocks them. MP4/WebM/MOV apply declared trim, gain, loop, and partial-frame-range alignment.
 - **`background: transparent` fights app body styles.** The engine frame layout already forces `body, main, .hero-render-canvas { background-color: transparent !important }`; render inside it.
 - **Playwright is a dev-only dependency.** The renderer lazy-requires it, so production boot / asset precompile never touch it.
 - **Never put HAML `-#` comments inside a `:css` filter.** They emit as literal text, and CSS error recovery silently swallows the *next* rule — a style block just stops applying with no error anywhere. Use `/* */` inside filters.

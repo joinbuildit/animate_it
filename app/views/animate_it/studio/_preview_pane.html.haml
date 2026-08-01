@@ -10,7 +10,7 @@
   %turbo-frame#animate_it_preview.animate-it-preview
     %iframe#animate_it_frame{
       title: "#{composition.id} frame preview",
-      src: "#{frame_base_url}/0?pp=disable",
+      src: composition.client_driven? ? "#{player_url}?pp=disable" : "#{frame_base_url}/0?pp=disable",
       style: "width: min(100%, #{composition.width}px); aspect-ratio: #{composition.width} / #{composition.height};"
     }
 

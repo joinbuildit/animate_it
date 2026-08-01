@@ -2,12 +2,18 @@
 
 = render "studio_styles"
 
-%main.animate-it-studio{ data: { frame_base_url: @frame_base_url, duration: @composition.duration_in_frames, fps: @composition.fps } }
+%main.animate-it-studio{ data: {
+  frame_base_url: @frame_base_url,
+  player_url: @player_url,
+  client_driven: @composition.client_driven?,
+  duration: @composition.duration_in_frames,
+  fps: @composition.fps
+} }
   %aside.animate-it-sidebar
     %h1 Animate It
     = render "composition_list", compositions: @compositions
 
-  = render "preview_pane", composition: @composition, frame_base_url: @frame_base_url, last_frame: @last_frame
+  = render "preview_pane", composition: @composition, frame_base_url: @frame_base_url, player_url: @player_url, last_frame: @last_frame
   = render "props_pane", composition: @composition, props_json: @props_json
 
 - @composition.timeline.segments.select { |seg| seg.kind == :audio }.each_with_index do |seg, idx|
@@ -15,7 +21,8 @@
             from_frame: seg.from_frame,
             duration_frames: seg.duration_frames || 0,
             track: seg.track,
-            gain: seg.source[:gain]
+            gain: seg.source[:gain],
+            loop: seg.source[:loop] ? "true" : "false"
           },
           src: animate_it_path("/compositions/#{@composition.id}/audio/#{idx}"),
           preload: "auto" }

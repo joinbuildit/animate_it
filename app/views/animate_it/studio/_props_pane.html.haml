@@ -9,6 +9,7 @@
 
   %section.animate-it-renders
     %h3 Rendering jobs
-    = turbo_stream_from AnimateIt::RenderStore::CHANNEL
-    %p.animate-it-stream-status Turbo Stream connected for render progress.
+    - if respond_to?(:turbo_stream_from)
+      = turbo_stream_from AnimateIt::RenderStore::CHANNEL
+      %p.animate-it-stream-status Turbo Stream connected for render progress.
     = AnimateIt::RenderStore.html.html_safe

@@ -39,11 +39,6 @@ module AnimateIt
       @output_path = Pathname(output_path)
       @frames_dir = Pathname(frames_dir || Rails.root.join("tmp/animate_it/#{composition.id}"))
       @playwright_cli = playwright_cli || ENV.fetch("PLAYWRIGHT_CLI_EXECUTABLE_PATH", DEFAULT_PLAYWRIGHT_CLI)
-
-      return unless audio_segments.any? && AUDIO_INCAPABLE_FORMATS.include?(@output_format)
-
-      raise Error,
-            "Composition #{composition.id} declares audio but format=#{@output_format} doesn't support audio. Use :webm/:mp4/:mov."
     end
 
     class CancelledError < AnimateIt::Error; end
@@ -57,11 +52,11 @@ module AnimateIt
 
       if capture_status == :cancelled || cancel_check&.call
         frame_count = contiguous_frame_count
-        encode_video(frame_count:) if frame_count.positive?
+        encode_video(frame_count:, start_frame: frame_list.first) if frame_count.positive?
         raise CancelledError, "Render cancelled"
       end
 
-      encode_video
+      encode_video(frame_count: frame_list.size, start_frame: frame_list.first)
       output_path
     end
 
@@ -87,7 +82,7 @@ module AnimateIt
           )
           page = context.new_page
 
-          page.goto(filmstrip_url(props:), waitUntil: "networkidle")
+          page.goto(page_url(props:), waitUntil: "networkidle")
           page.wait_for_function('document.documentElement.dataset.animateItReady === "1"')
 
           frame_list.each_with_index do |frame, index|
@@ -110,15 +105,19 @@ module AnimateIt
       cancelled || cancel_check&.call ? :cancelled : :complete
     end
 
-    def filmstrip_url(props:)
+    def page_url(props:)
       query = { pp: "disable" }
       query[:props_json] = JSON.generate(props) if props.present?
+      endpoint = composition.client_driven? ? "player" : "filmstrip"
 
-      "#{host}#{AnimateIt.config.mount_path}/compositions/#{composition.id}/filmstrip?#{URI.encode_www_form(query)}"
+      "#{host}#{AnimateIt.config.mount_path}/compositions/#{composition.id}/#{endpoint}?#{URI.encode_www_form(query)}"
     end
 
-    def encode_video(frame_count: nil)
-      return if output_format == :png_sequence # frames already on disk; nothing to encode
+    def encode_video(frame_count: nil, start_frame: 0)
+      if output_format == :png_sequence
+        publish_png_sequence(frame_count || contiguous_frame_count)
+        return
+      end
 
       if output_format == :png
         # Single-frame still: copy the captured PNG straight to output_path.
@@ -131,14 +130,24 @@ module AnimateIt
       command = ["ffmpeg", "-y", "-framerate", composition.fps.to_s,
                  "-i", frames_dir.join("frame-%05d.png").to_s]
 
-      audios = audio_segments
-      audios.each { |seg| command += ["-i", resolve_audio_path!(seg.source[:path])] }
+      clip_frame_count = frame_count || composition.duration_in_frames
+      audios = audio_capable? ? audio_segments(start_frame:, frame_count: clip_frame_count) : []
+      audios.each do |segment|
+        command += ["-stream_loop", "-1"] if segment.source[:loop]
+        command += ["-i", resolve_audio_path!(segment.source[:path])]
+      end
 
       command += video_codec_args
       command += ["-frames:v", frame_count.to_s] if frame_count
 
       if audios.any?
-        command += ["-filter_complex", audio_filter_graph(audios), "-map", "0:v", "-map", "[aout]", "-shortest"]
+        command += [
+          "-filter_complex",
+          audio_filter_graph(audios, start_frame:, frame_count: clip_frame_count),
+          "-map", "0:v",
+          "-map", "[aout]",
+          "-shortest"
+        ]
         command += audio_codec_args
       else
         command += ["-an"] # explicit no-audio so output containers like .mov stay clean
@@ -147,6 +156,19 @@ module AnimateIt
       command << output_path.to_s
 
       run!(command)
+    end
+
+    def publish_png_sequence(frame_count)
+      FileUtils.mkdir_p(output_path)
+      Dir.glob(output_path.join("frame-*.png")).each { |path| FileUtils.rm_f(path) }
+
+      frame_count.times do |index|
+        filename = format("frame-%05d.png", index)
+        source = frames_dir.join(filename)
+        raise Error, "Captured frame not found: #{source}" unless source.file?
+
+        FileUtils.cp(source, output_path.join(filename))
+      end
     end
 
     def video_codec_args
@@ -174,23 +196,44 @@ module AnimateIt
       end
     end
 
-    # Build an `adelay=...|...,volume=g[aN]` chain per audio input, then mix.
-    def audio_filter_graph(audios)
+    # Trim each source to its timeline window before delaying and mixing it.
+    def audio_filter_graph(audios, start_frame: 0, frame_count: composition.duration_in_frames)
       ms_per_frame = 1000.0 / composition.fps
-      legs = audios.each_with_index.map do |seg, i|
-        delay_ms = (seg.from_frame * ms_per_frame).round
-        gain = seg.source[:gain] || 1.0
-        "[#{i + 1}:a]adelay=#{delay_ms}|#{delay_ms},volume=#{gain}[a#{i}]"
+      clip_end_frame = start_frame + frame_count
+      legs = audios.each_with_index.map do |segment, index|
+        segment_end_frame = segment.duration_frames ? segment.from_frame + segment.duration_frames : composition.duration_in_frames
+        overlap_start_frame = [segment.from_frame, start_frame].max
+        overlap_end_frame = [segment_end_frame, clip_end_frame].min
+        source_start_seconds = (overlap_start_frame - segment.from_frame).fdiv(composition.fps)
+        overlap_seconds = (overlap_end_frame - overlap_start_frame).fdiv(composition.fps)
+        delay_ms = ((overlap_start_frame - start_frame) * ms_per_frame).round
+        gain = segment.source[:gain] || 1.0
+        "[#{index + 1}:a]atrim=start=#{source_start_seconds}:duration=#{overlap_seconds}," \
+          "asetpts=PTS-STARTPTS," \
+          "adelay=#{delay_ms}|#{delay_ms},volume=#{gain}[a#{index}]"
       end
       # normalize=0: amix's default rescales every input by 1/N, which
       # silently buries a voice-over under a music bed the moment a second
       # track is declared. Declared gains are the only intended scaling.
-      mix = "#{audios.length.times.map { |i| "[a#{i}]" }.join}amix=inputs=#{audios.length}:duration=longest:normalize=0[aout]"
+      clip_seconds = frame_count.fdiv(composition.fps)
+      mix = "#{audios.length.times.map { |i| "[a#{i}]" }.join}" \
+            "amix=inputs=#{audios.length}:duration=longest:normalize=0," \
+            "apad=whole_dur=#{clip_seconds},atrim=duration=#{clip_seconds}[aout]"
       [legs, mix].flatten.join(";")
     end
 
-    def audio_segments
-      composition.timeline.segments.select { |seg| seg.kind == :audio }
+    def audio_segments(start_frame: 0, frame_count: composition.duration_in_frames)
+      clip_end_frame = start_frame + frame_count
+      composition.timeline.segments.select do |segment|
+        next false unless segment.kind == :audio
+
+        segment_end_frame = segment.duration_frames ? segment.from_frame + segment.duration_frames : composition.duration_in_frames
+        segment.from_frame < clip_end_frame && segment_end_frame > start_frame
+      end
+    end
+
+    def audio_capable?
+      AUDIO_INCAPABLE_FORMATS.exclude?(output_format)
     end
 
     def resolve_audio_path!(path)

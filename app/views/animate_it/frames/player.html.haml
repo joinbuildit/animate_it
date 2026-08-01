@@ -1,0 +1,51 @@
+!!!
+%html{ lang: "en" }
+  %head
+    %title= "#{@composition.id} player (#{@composition.duration_in_frames} frames)"
+    %meta{ name: "viewport", content: "width=#{@composition.width}, initial-scale=1" }
+    - AnimateIt.config.render_stylesheets.each do |sheet|
+      = stylesheet_link_tag sheet, "data-turbo-track": "reload"
+    :css
+      html, body {
+        width: #{@composition.width}px;
+        height: #{@composition.height}px;
+        margin: 0;
+        overflow: hidden;
+        background: transparent;
+      }
+      body {
+        zoom: #{@composition.zoom};
+      }
+      body, main, .hero-render-canvas {
+        background-color: transparent !important;
+      }
+      *, *::before, *::after {
+        transition: none !important;
+      }
+      .animate-it-stage {
+        position: absolute;
+        inset: 0;
+        width: #{@composition.width}px;
+        height: #{@composition.height}px;
+        overflow: hidden;
+      }
+      .animate-it-layer {
+        position: absolute;
+        inset: 0;
+        display: none !important;
+        visibility: hidden;
+      }
+      .animate-it-layer.is-active {
+        display: block !important;
+        visibility: visible;
+      }
+  %body
+    .animate-it-stage
+      = @composition.render_structure(self, props: @props)
+    - if respond_to?(:render_page_stylesheets)
+      = render_page_stylesheets
+    - if respond_to?(:render_component_stylesheets)
+      = render_component_stylesheets
+    %script{ type: "application/json", data: { animate_it_tracks: true } }
+      != ERB::Util.json_escape(@track_document.to_json)
+    = javascript_tag AnimateIt::Runtime.source.html_safe

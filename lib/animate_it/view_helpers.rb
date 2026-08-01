@@ -4,8 +4,13 @@ module AnimateIt
       Style.build(*rules, **properties)
     end
 
-    def absolute_fill(class_name: nil, style: nil, **attributes, &block)
+    def absolute_fill(class_name: nil, style: nil, vars: nil, **attributes, &block)
       content = block.call
+
+      if vars
+        style = [style.presence, animation_vars(vars)].compact.join("; ")
+        attributes = { data: { animate_vars: vars } }.deep_merge(attributes)
+      end
 
       tag.div(
         **attributes,
@@ -14,6 +19,11 @@ module AnimateIt
       ) do
         content
       end
+    end
+
+    def animate_text(key, tag_name: :span, **attributes)
+      attributes = { data: { animate_text: key } }.deep_merge(attributes)
+      tag.public_send(tag_name, evaluate_text_track(key).to_s, **attributes)
     end
 
     def render_template(template, assigns: {}, **)

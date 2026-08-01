@@ -24,6 +24,9 @@
       body, main, .hero-render-canvas {
         background-color: transparent !important;
       }
+      *, *::before, *::after {
+        transition: none !important;
+      }
       .animate-it-frame {
         position: absolute;
         inset: 0;
@@ -40,26 +43,54 @@
   %body
     - (0...@composition.duration_in_frames).each do |frame|
       .animate-it-frame{ class: ('is-active' if frame.zero?), data: { frame: frame } }
-        = @composition.render_frame(self, frame: frame, props: @props)
+        = @composition.render_frame(self, frame: frame, props: @props, segment_origins: true)
     -# See app/views/animate_it/frames/show.html.haml for why these are at the
     -# bottom of body. Host-app accumulator helpers — emit only when present.
     - if respond_to?(:render_page_stylesheets)
       = render_page_stylesheets
     - if respond_to?(:render_component_stylesheets)
       = render_component_stylesheets
+    = javascript_tag AnimateIt::Runtime.source.html_safe
     :javascript
       (() => {
         const frames = Array.from(document.querySelectorAll(".animate-it-frame"));
+        const segmentRoots = new WeakMap();
+        frames.forEach((frame) => {
+          const segments = Array.from(frame.querySelectorAll(":scope > [data-animate-it-segment-origin]"));
+          segmentRoots.set(frame, segments.map((segment) => {
+            const entry = {
+              origin: Number(segment.dataset.animateItSegmentOrigin) || 0,
+              roots: Array.from(segment.children)
+            };
+            segment.replaceWith(...segment.childNodes);
+            return entry;
+          }));
+        });
         let active = frames[0] || null;
         window.__animateIt = {
           totalFrames: frames.length,
           setFrame(n) {
-            const target = frames[n];
-            if (!target || target === active) return;
-            if (active) active.classList.remove("is-active");
-            target.classList.add("is-active");
-            active = target;
+            const frame = Math.max(0, Math.min(frames.length - 1, Math.round(Number(n) || 0)));
+            const target = frames[frame];
+            if (!target) return frame;
+            if (target !== active) {
+              if (active) active.classList.remove("is-active");
+              target.classList.add("is-active");
+              active = target;
+            }
+            const segments = segmentRoots.get(target) || [];
+            if (segments.length) {
+              segments.forEach((segment) => {
+                segment.roots.forEach((root) => {
+                  window.AnimateItRuntimeApi.seekAnimations(root, frame - segment.origin, #{@composition.fps});
+                });
+              });
+            } else {
+              window.AnimateItRuntimeApi.seekAnimations(target, frame, #{@composition.fps});
+            }
+            return frame;
           }
         };
+        window.__animateIt.setFrame(0);
         document.documentElement.dataset.animateItReady = "1";
       })();

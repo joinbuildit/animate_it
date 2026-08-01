@@ -18,5 +18,12 @@ module AnimateIt
       @composition = composition
       @props = preview_props
     end
+
+    def player
+      @composition = composition
+      @props = preview_props
+      @track_document = @composition.track_document(props: @props)
+      TrackDocumentSchema.validate!(@track_document)
+    end
   end
 end

@@ -14,6 +14,7 @@ module AnimateIt
         subclass.instance_variable_set(:@zoom, 1.0)
         subclass.instance_variable_set(:@duration_in_frames, 30)
         subclass.instance_variable_set(:@output_format, :webm)
+        subclass.instance_variable_set(:@verification_props, [{}].freeze)
         super
       end
 
@@ -63,6 +64,65 @@ module AnimateIt
 
         @id = value.to_s
         AnimateIt.register(self)
+      end
+
+      # Opt in to the seekable browser runtime. Legacy compositions continue
+      # rendering individual frames on the server.
+      def client_driven!
+        @client_driven = true
+      end
+
+      def client_driven?
+        @client_driven == true
+      end
+
+      def verification_props(*variants)
+        return @verification_props if variants.empty?
+
+        raise ArgumentError, "verification_props entries must be hashes" unless variants.all?(Hash)
+
+        @verification_props = variants.map(&:deep_symbolize_keys).freeze
+      end
+
+      def structure_epochs(*frames)
+        return @structure_epochs || [] if frames.empty?
+
+        @structure_epochs = frames.map(&:to_i).sort.uniq
+      end
+
+      def structure_layers
+        timeline.segments.each_with_index.flat_map do |segment, segment_index|
+          next [] unless segment.kind == :scene
+
+          segment_end = segment.duration_frames ? segment.from_frame + segment.duration_frames : duration_in_frames
+          epochs = structure_epochs.select { |frame| frame > segment.from_frame && frame < segment_end }
+          bounds = ([segment.from_frame] + epochs).sort.uniq
+          bounds.each_with_index.map do |from_frame, index|
+            Tracks::Layer.new(
+              segment:,
+              segment_index:,
+              from_frame:,
+              to_frame: bounds[index + 1] || segment_end
+            )
+          end
+        end
+      end
+
+      def render_structure(view_context, props: {})
+        resolved_props = props_schema.resolve(props)
+        rendered_layers = structure_layers.map do |layer|
+          context = frame_context(frame: layer.from_frame, props: resolved_props, segment: layer.segment)
+          view_context.tag.div(
+            render_segment(view_context, layer.segment, context),
+            class: "animate-it-layer",
+            data: { animate_layer: layer.key }
+          )
+        end
+        view_context.safe_join(rendered_layers)
+      end
+
+      def track_document(props: {})
+        Tracks::Recorder.new(self, props:).call
       end
 
       def fps(value = nil)
@@ -140,12 +200,16 @@ module AnimateIt
       # ----- Audio DSL --------------------------------------------------
       # Loop a track for the full duration (or a slice). Background music.
       def audio_loop(path, duration: nil, from: 0, name: nil, gain: 1.0, track: :background)
-        # Simplest implementation: place the same source once at `from`
-        # for the requested length. The renderer's audio mixer handles
-        # truncation if the underlying file is longer than the segment.
         length = duration || (@duration_in_frames - Units.frames(from, fps: fps))
-        audio(path, duration: length, from: from, name: name || "loop-#{File.basename(path.to_s)}", track: track,
-                    gain: gain)
+        audio(
+          path,
+          duration: length,
+          from:,
+          name: name || "loop-#{File.basename(path.to_s)}",
+          track:,
+          gain:,
+          loop: true
+        )
       end
 
       # Play a voice-over clip at a named beat (or time/frame). The clip's
@@ -212,14 +276,21 @@ module AnimateIt
       # Place an audio segment on its own track. The renderer doesn't draw
       # audio; the studio plays it via <audio> tags synced to the scrubber, and
       # ffmpeg muxes it into the final encode.
-      def audio(path, duration: nil, from: 0, start_at: nil, name: nil, track: :audio, gain: 1.0)
+      def audio(path, duration: nil, from: 0, start_at: nil, name: nil, track: :audio, gain: 1.0, loop: false)
+        begin
+          gain = Float(gain)
+        rescue TypeError, ArgumentError
+          raise ArgumentError, "Audio gain must be a number between 0.0 and 1.0"
+        end
+        raise ArgumentError, "Audio gain must be between 0.0 and 1.0" unless gain.between?(0.0, 1.0)
+
         timeline.add_segment(
           name: name || File.basename(path.to_s),
           from_frame: Units.frames(start_at || from, fps:),
           duration_frames: Units.frames(duration, fps:),
           kind: :audio,
           track:,
-          source: { path: path.to_s, gain: gain.to_f },
+          source: { path: path.to_s, gain:, loop: },
           show_in_timeline: true
         )
       end
@@ -246,14 +317,17 @@ module AnimateIt
         )
       end
 
-      def render_frame(view_context, frame:, props: {})
+      def render_frame(view_context, frame:, props: {}, segment_origins: false)
         resolved_props = props_schema.resolve(props)
         segments = timeline.active_segments(frame.to_i, kind: :scene)
         return "" if segments.empty?
 
         rendered_segments = segments.map do |segment|
           context = frame_context(frame:, props: resolved_props, segment:)
-          render_segment(view_context, segment, context)
+          content = render_segment(view_context, segment, context)
+          next content unless segment_origins
+
+          view_context.tag.div(content, data: { animate_it_segment_origin: segment.from_frame })
         end
         view_context.safe_join(rendered_segments)
       end

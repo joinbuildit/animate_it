@@ -13,7 +13,7 @@
 <p align="center">
   <a href="https://github.com/growth-constant/animate_it/actions/workflows/ci.yml"><img src="https://github.com/growth-constant/animate_it/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://rubygems.org/gems/animate_it"><img src="https://img.shields.io/gem/v/animate_it.svg" alt="Gem Version"></a>
-  <img src="https://img.shields.io/badge/ruby-%3E%3D%203.4-CC342D.svg" alt="Ruby >= 3.4">
+  <img src="https://img.shields.io/badge/ruby-%3E%3D%203.3-CC342D.svg" alt="Ruby >= 3.3">
 </p>
 
 ---
@@ -22,11 +22,11 @@
 **AnimateIt brings the same idea to Ruby on Rails** — without React, a JavaScript
 project, or a video editor.
 
-You describe a video as a Ruby class and a HAML template, preview it frame-by-frame
-in a bundled **Studio** UI, and render it to MP4/WebM/MOV/GIF. Every frame is a real
-web page, so you get the full power of CSS and — crucially — **your app's own
-components, styles, fonts, and real data**. A headless browser captures each frame
-and FFmpeg stitches them into a video.
+You describe a video as a Ruby class and a HAML or ERB template, preview it in a
+bundled **Studio** UI, and render it to MP4/WebM/MOV/GIF. The declarative runtime
+renders the template once per structural layer, records compact animation tracks,
+and seeks those tracks in the browser. You still get your app's own components,
+styles, fonts, and real data without asking Rails to render every frame.
 
 It's built for indie hackers and Rails developers who want to promote their projects
 with polished product demos, launch clips, and social ads — reusing the UI they've
@@ -72,9 +72,15 @@ and reload in development.
 # app/videos/hello_video.rb
 class HelloVideo < AnimateIt::Composition
   id "hello"
+  client_driven!
   fps 30
   size 1080, 1080
   duration 3.seconds
+
+  props do
+    integer :counter_start, default: 0
+  end
+  verification_props({}, { counter_start: 100 })
 
   assets_dir "app/assets/images/videos"
   output_basename "hello"
@@ -88,9 +94,16 @@ class HelloVideo < AnimateIt::Composition
   beat :intro, at: 0, length: 45
 
   class Scene < AnimateIt::Scene
+    track_vars :root do
+      { title_opacity: at_act(:intro, [0, 30], [0, 1]) }
+    end
+
+    text_track(:counter) { (props[:counter_start] + local_frame).to_s }
+
     def body
-      expose(vars: animation_vars(title_opacity: at_act(:intro, [0, 30], [0, 1])))
-      tag.div(class: "hero-render-canvas") { render_scene_template("canvas") }
+      absolute_fill(vars: :root) do
+        safe_join([render_scene_template("canvas"), animate_text(:counter)])
+      end
     end
   end
 
@@ -102,14 +115,42 @@ end
 -# app/videos/hello_video/canvas.html.haml
 :css
   .title { opacity: var(--title-opacity, 1); font-size: 6rem; font-weight: 800; }
-.stage{style: @vars}
+.stage
   .title Hello 👋
 ```
 
-Animation helpers (`at_global`, `at_act`, `beat_frame`, `beat_range`), a per-frame
-CSS-variable bag (`animation_vars`), named `beat`s, and `audio` / `audio_loop`
-tracks are all available. Compositions can render your app's real partials and
-ViewComponents — see `AnimateIt.config.render_stylesheets` below.
+Animation helpers (`at_global`, `at_act`, `beat_frame`, `beat_range`), sampled
+CSS variables (`track_vars`), dynamic text (`text_track`), named `beat`s, and
+`audio` / `audio_loop` tracks are available. Compositions can render your app's
+real partials and ViewComponents — see `AnimateIt.config.render_stylesheets`
+below.
+
+### Browser playback runtime
+
+`client_driven!` switches export and Studio playback to `/player`. Rails renders
+each structural layer once and records a schema-v2 track document; then
+`window.__animateIt.setFrame(frame)` updates CSS variables, text, layer
+visibility, word reveals, and native CSS/Web Animations without another frame
+request.
+
+Use `structure_epochs` only when a template's DOM shape changes. Each epoch adds
+one pre-rendered layer. Track schema v2 scopes bindings to their timeline segment;
+the player still accepts v1 documents and rejects unknown versions.
+
+```ruby
+structure_epochs 60, 120
+
+class Scene < AnimateIt::Scene
+  track_vars(:card) { { x: "#{at_global([0, 30], [-20, 0])}px" } }
+  text_track(:score) { (progress * 100).round }
+
+  def body
+    absolute_fill(vars: :card) do
+      safe_join([render_scene_template("canvas"), animate_text(:score)])
+    end
+  end
+end
+```
 
 ### HAML or ERB
 
@@ -118,9 +159,9 @@ Scene sidecar templates can be authored in **HAML** (`canvas.html.haml`) or
 mix engines across scenes. The HAML canvas above is equivalent to:
 
 ```erb
--# app/videos/hello_video/canvas.html.erb
+<%# app/videos/hello_video/canvas.html.erb %>
 <style>.title { opacity: var(--title-opacity, 1); font-size: 6rem; font-weight: 800; }</style>
-<div class="stage" style="<%= @vars %>">
+<div class="stage">
   <div class="title">Hello 👋</div>
 </div>
 ```
@@ -130,8 +171,9 @@ app to use it — ERB-only apps work out of the box.
 
 ## Rendering
 
-The renderer needs your Rails **server running** (it drives a real browser against
-the Studio's filmstrip endpoint).
+The renderer needs your Rails **server running**. It drives a real browser
+against `/player` for client-driven compositions and the legacy `/filmstrip`
+endpoint for other compositions.
 
 ```bash
 # start the app
@@ -140,6 +182,10 @@ bin/rails server
 # in another shell — render a composition's declared outputs
 bin/rails 'animate_it:render[hello]'
 bin/rails 'animate_it:render[hello,0..45]'   # just a frame range
+
+# compare /player with the legacy /filmstrip (step 1 checks every frame)
+bin/rails 'animate_it:verify[hello,1]'
+bin/rails animate_it:verify_all
 
 # or the packaged CLI (writes to tmp/animate_it/ by default)
 bundle exec render_animate_it_video hello
@@ -176,6 +222,38 @@ end
 Render concurrency for the Studio's background renderer is tunable via
 `ANIMATE_IT_RENDER_CONCURRENCY` and `ANIMATE_IT_RENDER_STARTS_PER_SECOND`.
 
+## Deterministic asset preflight
+
+Host applications can record local composition inputs in
+`config/animate_it_assets.yml`. `bin/rails animate_it:preflight` checks that each
+file exists, matches its SHA-256 checksum, and has a provenance provider. Media
+stays in the host app and is not packaged in the gem.
+
+```yaml
+version: 1
+assets:
+  - path: app/audio/launch/music.mp3
+    kind: music
+    compositions: [hello]
+    sha256: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+    provenance:
+      provider: elevenlabs
+      generated_with_ai: true
+      model_id: not-recorded
+      generation_id: not-recorded
+```
+
+For parameterized compositions, declare `verification_props` or override them
+at the command line:
+
+```bash
+ANIMATE_IT_PROPS_JSON='{"title":"Variant"}' bin/rails 'animate_it:verify[hello,1]'
+ANIMATE_IT_PROPS_MATRIX_JSON='[{}, {"title":"Variant"}]' bin/rails animate_it:verify_all
+```
+
+Verification requires a running server and writes comparison screenshots under
+`tmp/animate_it/verify`.
+
 ## Claude skill
 
 If you use [Claude Code](https://claude.com/claude-code), this repo ships an
@@ -195,6 +273,7 @@ The skill source lives in [`skills/`](skills/).
 bin/setup                # bundle install
 bundle exec rspec        # unit + request specs (uses spec/dummy)
 bundle exec rubocop
+gem build animate_it.gemspec
 
 # full render smoke test (needs ffmpeg + Playwright chromium)
 RUN_RENDER_SMOKE=1 bundle exec rspec spec/rendering_spec.rb

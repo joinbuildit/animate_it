@@ -6,6 +6,32 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-01
+
+### Added
+- Declarative schema-v2 track recording for sampled CSS variables, dynamic
+  text, word reveals, and compact keyframe tracks.
+- Browser-driven `/player` playback and export. Client-driven compositions
+  render once per structural layer and seek deterministically without a Rails
+  request for every frame.
+- `client_driven!`, `structure_epochs`, `track_vars`, `text_track`,
+  `verification_props`, and deterministic native CSS/Web Animation seeking.
+- Player-versus-filmstrip verification with RGB and alpha comparison, props
+  matrices, structural-boundary sampling, and an every-frame `verify_all` gate.
+- Checksum and provenance preflight for host-owned composition source assets.
+
+### Changed
+- Studio playback and seeking use the same client runtime as export for
+  client-driven compositions.
+- Animated outputs preserve declared audio trim, loop, gain, and partial-range
+  alignment; GIF and PNG outputs remain silent.
+- PNG sequences are published to their declared destination directory.
+
+### Compatibility
+- Continued support for Ruby >= 3.3, Rails >= 7.2, HAML >= 6.3, HAML and ERB
+  sidecars, the packaged renderer executable, configurable mount paths and host
+  stylesheets, and the Rails 7.2 / Rails 8.1 appraisal matrix.
+
 ## [0.3.2] - 2026-07-23
 
 ### Fixed
@@ -63,7 +89,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `render_animate_it_video` executable and `animate_it:render` rake task.
 - `animate_it:install` generator.
 
-[Unreleased]: https://github.com/joinbuildit/animate_it/compare/v0.3.2...HEAD
+[Unreleased]: https://github.com/joinbuildit/animate_it/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/joinbuildit/animate_it/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/joinbuildit/animate_it/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/joinbuildit/animate_it/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/growth-constant/animate_it/compare/v0.2.0...v0.3.0
