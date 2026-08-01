@@ -95,7 +95,11 @@ module AnimateIt
       cancelled = false
 
       Playwright.create(playwright_cli_executable_path: playwright_cli) do |pw|
-        browser = pw.chromium.launch(headless: true, args: ["--disable-web-security"])
+        browser = pw.chromium.launch(
+          headless: true,
+          args: ["--disable-web-security"],
+          timeout: 30_000.0
+        )
         begin
           context = browser.new_context(
             viewport: { width: composition.width, height: composition.height }
