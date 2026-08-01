@@ -51,8 +51,8 @@ RSpec.describe "AnimateIt Studio", type: :request do
 
       get "#{mount}/public/compositions/client-runtime-spec/player"
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("data-animate-it-transport='true'")
-      expect(response.body).to include("data-animate-it-play")
+      expect(response.parsed_body.at_css('script[data-animate-it-transport="true"]')).to be_present
+      expect(response.parsed_body.at_css("[data-animate-it-play]")).to be_present
       expect(response.body).to include("/public/compositions/client-runtime-spec/audio/0")
     end
 
