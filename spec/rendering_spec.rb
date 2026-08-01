@@ -252,7 +252,7 @@ RSpec.describe "AnimateIt render pipeline", :render_smoke, type: :request do
   def with_browser
     cli = ENV.fetch("PLAYWRIGHT_CLI_EXECUTABLE_PATH", "npx playwright")
     Playwright.create(playwright_cli_executable_path: cli) do |playwright|
-      browser = playwright.chromium.launch(headless: true, timeout: 30_000.0)
+      browser = playwright.chromium.launch(headless: true)
       begin
         context = browser.new_context(viewport: { width: 240, height: 120 })
         yield context

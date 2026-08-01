@@ -9,7 +9,7 @@ group :development, :test do
   gem "capybara", "~> 3.40"
   gem "factory_bot", "~> 6.5"
   gem "faker", "~> 3.5"
-  gem "playwright-ruby-client", "~> 1.50"
+  gem "playwright-ruby-client", "~> 1.61.0"
   gem "puma", "~> 6.0"
   gem "rspec-rails", "~> 8.0"
   gem "rubocop", "~> 1.68", require: false

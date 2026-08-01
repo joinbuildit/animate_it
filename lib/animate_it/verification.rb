@@ -43,7 +43,6 @@ module AnimateIt
       Playwright.create(playwright_cli_executable_path: @playwright_cli) do |playwright|
         browser = playwright.chromium.launch(
           headless: true,
-          timeout: ready_timeout.to_f,
           args: [
             "--disable-web-security",
             "--disable-lcd-text",

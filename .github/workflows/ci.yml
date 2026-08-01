@@ -58,7 +58,7 @@ jobs:
       - name: Install Playwright + Chromium
         if: matrix.ruby == '3.4' && matrix.gemfile == 'rails_8.1'
         run: |
-          npm install -g playwright@1.61
+          npm install -g playwright@1.61.1
           playwright install --with-deps chromium
 
       - name: RSpec (render smoke)
