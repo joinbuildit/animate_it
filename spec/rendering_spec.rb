@@ -153,8 +153,11 @@ RSpec.describe "AnimateIt render pipeline", :render_smoke, type: :request do
 
       studio.locator("#animate_it_play").click
       studio.wait_for_function(<<~JS)
-        Array.from(document.querySelectorAll("audio[data-from-frame]"))
-          .some((el) => !el.paused && el.currentTime > 0.38)
+        (() => {
+          const voice = Array.from(document.querySelectorAll("audio[data-from-frame]"))
+            .find((el) => el.dataset.loop === "false");
+          return voice && !voice.paused && voice.currentTime > 0.34;
+        })()
       JS
       playing_state = studio.evaluate(<<~JS)
         () => Array.from(document.querySelectorAll("audio[data-from-frame]")).map((el) => ({
