@@ -31,6 +31,14 @@ RSpec.describe "AnimateIt Studio", type: :request do
     expect(response.body).to include("__animateIt")
   end
 
+  it "marks client-driven compositions for the persistent Studio player" do
+    get "#{mount}/compositions/client-runtime-spec"
+
+    expect(response).to have_http_status(:ok)
+    expect(response.parsed_body.at_css(".animate-it-studio")["data-client-driven"]).to eq("true")
+    expect(response.parsed_body.at_css("#animate_it_frame")["src"]).to end_with("/player?pp=disable")
+  end
+
   it "404s for an unknown composition" do
     get "#{mount}/compositions/does-not-exist/frame/0"
 

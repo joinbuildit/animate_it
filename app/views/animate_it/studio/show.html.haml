@@ -5,7 +5,7 @@
 %main.animate-it-studio{ data: {
   frame_base_url: @frame_base_url,
   player_url: @player_url,
-  client_driven: @composition.client_driven?,
+  client_driven: @composition.client_driven? ? "true" : "false",
   duration: @composition.duration_in_frames,
   fps: @composition.fps
 } }
