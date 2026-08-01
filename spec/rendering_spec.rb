@@ -150,6 +150,68 @@ RSpec.describe "AnimateIt render pipeline", :render_smoke, type: :request do
       expect(loop_audio.fetch("currentTime")).to be_within(0.08).of(0.9 % loop_audio.fetch("duration"))
       expect(voice_audio.fetch("currentTime")).to be_within(0.08).of(0.3)
       expect(audio_state).to all(include("paused" => true))
+
+      studio.locator("#animate_it_play").click
+      studio.wait_for_function(<<~JS)
+        Array.from(document.querySelectorAll("audio[data-from-frame]"))
+          .some((el) => !el.paused && el.currentTime > 0.38)
+      JS
+      playing_state = studio.evaluate(<<~JS)
+        () => Array.from(document.querySelectorAll("audio[data-from-frame]")).map((el) => ({
+          loop: el.dataset.loop,
+          currentTime: el.currentTime,
+          paused: el.paused
+        }))
+      JS
+      expect(playing_state).to include(include("paused" => false))
+      expect(playing_state.find { |audio| audio.fetch("loop") == "false" }.fetch("currentTime")).to be > 0.3
+
+      studio.locator("#animate_it_play").click
+    end
+
+    Dir.mktmpdir("animate-it-client-audio-render") do |directory|
+      output = Pathname(directory).join("client-runtime.mp4")
+      AnimateIt::VideoRenderer.new(
+        composition: composition,
+        host: server_host,
+        output_path: output,
+        frames_dir: Pathname(directory).join("frames"),
+        format: :mp4
+      ).render
+
+      expect(ffprobe_stream_types(output)).to contain_exactly("video", "audio")
+    end
+  end
+
+  it "plays an allowlisted public composition without a Studio parent" do
+    require "playwright"
+    AnimateIt.load_compositions!
+    composition = AnimateIt.registry.fetch("client-runtime-spec")
+
+    with_browser do |context|
+      player = context.new_page
+      response = player.goto(
+        "#{server_host}#{AnimateIt.config.mount_path}/public/compositions/#{composition.id}/player",
+        waitUntil: "networkidle"
+      )
+
+      expect(response).to be_ok
+      player.wait_for_function("window.AnimateItTransport !== undefined")
+      expect(player.evaluate("window.AnimateItTransport.playing()")).to be(false)
+
+      player.locator("[data-animate-it-play]").click
+      player.wait_for_function("window.AnimateItTransport.currentFrame() > 0")
+
+      state = player.evaluate(<<~JS)
+        () => ({
+          playing: window.AnimateItTransport.playing(),
+          frame: window.AnimateItTransport.currentFrame(),
+          audible: Array.from(document.querySelectorAll("audio")).some((audio) => !audio.paused),
+          button: document.querySelector("[data-animate-it-play]").textContent
+        })
+      JS
+      expect(state).to include("playing" => true, "audible" => true, "button" => "Pause")
+      expect(state.fetch("frame")).to be > 0
     end
   end
 
@@ -256,5 +318,14 @@ RSpec.describe "AnimateIt render pipeline", :render_smoke, type: :request do
 
     FileUtils.mkdir_p(path.dirname)
     File.binwrite(path, header + data)
+  end
+
+  def ffprobe_stream_types(path)
+    stdout, stderr, status = Open3.capture3(
+      "ffprobe", "-v", "error", "-show_entries", "stream=codec_type", "-of", "json", path.to_s
+    )
+    raise "ffprobe failed: #{stderr}" unless status.success?
+
+    JSON.parse(stdout).fetch("streams").map { |stream| stream.fetch("codec_type") }
   end
 end

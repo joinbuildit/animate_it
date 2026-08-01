@@ -1,6 +1,10 @@
 AnimateIt::Engine.routes.draw do
   root "studio#index"
 
+  get "public/compositions/:id/player", to: "public_players#show", as: :public_composition_player
+  get "public/compositions/:id/audio/:index", to: "public_players#audio", as: :public_composition_audio,
+                                              constraints: { index: /\d+/ }
+
   get "compositions/:id", to: "studio#show", as: :composition
   get "compositions/:id/frame/:frame", to: "frames#show", as: :composition_frame, constraints: { frame: /-?\d+/ }
   get "compositions/:id/filmstrip", to: "frames#filmstrip", as: :composition_filmstrip

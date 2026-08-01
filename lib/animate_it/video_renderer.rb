@@ -43,12 +43,19 @@ module AnimateIt
 
     class CancelledError < AnimateIt::Error; end
 
-    def render(frame_range: nil, every_nth_frame: 1, props: {}, on_progress: nil, cancel_check: nil)
+    def render(frame_range: nil, every_nth_frame: 1, props: {}, on_progress: nil, cancel_check: nil,
+               reuse_captured_frames: false)
       FileUtils.mkdir_p(frames_dir)
       FileUtils.mkdir_p(output_path.dirname)
 
       frame_list = frames(frame_range:, every_nth_frame:)
-      capture_status = capture_frames(frame_list, props:, on_progress:, cancel_check:)
+      if reuse_captured_frames
+        validate_captured_frames!(frame_list.size)
+        capture_status = :complete
+      else
+        clear_captured_frames!
+        capture_status = capture_frames(frame_list, props:, on_progress:, cancel_check:)
+      end
 
       if capture_status == :cancelled || cancel_check&.call
         frame_count = contiguous_frame_count
@@ -61,6 +68,19 @@ module AnimateIt
     end
 
     private
+
+    def clear_captured_frames!
+      Dir.glob(frames_dir.join("frame-*.png")).each { |path| FileUtils.rm_f(path) }
+    end
+
+    def validate_captured_frames!(frame_count)
+      missing = frame_count.times.find do |index|
+        !frames_dir.join(format("frame-%05d.png", index)).file?
+      end
+      return unless missing
+
+      raise Error, "Captured frame not found: #{frames_dir.join(format("frame-%05d.png", missing))}"
+    end
 
     def frames(frame_range:, every_nth_frame:)
       range = frame_range || (0...composition.duration_in_frames)

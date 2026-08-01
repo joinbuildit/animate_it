@@ -149,4 +149,54 @@ RSpec.describe AnimateIt::Runtime do
       ]
     )
   end
+
+  it "owns a frame clock and synchronizes declared audio" do
+    result = run_node(<<~JS)
+      const api = require(process.argv[1]);
+      let now = 0;
+      let nextTick = null;
+      global.performance = { now: () => now };
+      global.requestAnimationFrame = (callback) => { nextTick = callback; return 1; };
+      global.cancelAnimationFrame = () => { nextTick = null; };
+
+      let current = 0;
+      const frames = [];
+      const player = {
+        duration: 5, fps: 10,
+        currentFrame: () => current,
+        setFrame(frame) { current = frame; frames.push(frame); return frame; }
+      };
+      const audio = {
+        dataset: { fromFrame: "0", durationFrames: "5", gain: "0.5", loop: "false" },
+        duration: 2, currentTime: 0, readyState: 1, paused: true, playCalls: 0,
+        play() { this.paused = false; this.playCalls += 1; return Promise.resolve(); },
+        pause() { this.paused = true; },
+        addEventListener() {}
+      };
+      const button = {
+        textContent: "", attrs: {},
+        setAttribute(name, value) { this.attrs[name] = value; },
+        addEventListener(_name, callback) { this.click = callback; }
+      };
+
+      (async () => {
+        const transport = api.createTransport(player, [audio], { loop: false, button });
+        await transport.play();
+        now = 220;
+        nextTick(now);
+        transport.pause();
+        process.stdout.write(JSON.stringify({
+          frames, frame: transport.currentFrame(), playing: transport.playing(),
+          playCalls: audio.playCalls, audioTime: audio.currentTime, volume: audio.volume,
+          button: button.textContent, pressed: button.attrs["aria-pressed"]
+        }));
+      })();
+    JS
+
+    expect(result).to eq(
+      "frames" => [2], "frame" => 2, "playing" => false,
+      "playCalls" => 1, "audioTime" => 0.2, "volume" => 0.5,
+      "button" => "Play", "pressed" => "false"
+    )
+  end
 end

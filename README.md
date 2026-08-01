@@ -152,6 +152,37 @@ class Scene < AnimateIt::Scene
 end
 ```
 
+### Production frontend playback
+
+Public playback is opt-in per composition. `public_player!` enables the
+standalone browser clock, Play/Pause control, looping, and synchronized
+music/voice/SFX. It does not expose Studio, frame, filmstrip, props, or render
+endpoints, and public playback always uses the composition's default props.
+
+```ruby
+class HelloVideo < AnimateIt::Composition
+  id "hello"
+  public_player! autoplay: false, loop: true
+  # ...
+end
+```
+
+Mount the engine in every environment, then embed the allowlisted composition
+from a host view:
+
+```ruby
+# config/routes.rb
+mount AnimateIt::Engine, at: AnimateIt.config.mount_path
+```
+
+```erb
+<%= animate_it_player "hello", title: "Hello product demo" %>
+```
+
+The iframe renders each structural layer once and advances entirely in the
+browser. Audio-capable players fall back to the visible Play button when the
+browser blocks autoplay.
+
 ### HAML or ERB
 
 Scene sidecar templates can be authored in **HAML** (`canvas.html.haml`) or
@@ -219,8 +250,10 @@ AnimateIt.configure do |config|
 end
 ```
 
-Render concurrency for the Studio's background renderer is tunable via
-`ANIMATE_IT_RENDER_CONCURRENCY` and `ANIMATE_IT_RENDER_STARTS_PER_SECOND`.
+When one composition declares multiple formats for the same frame range,
+AnimateIt captures the ordered Chromium frames once and reuses them for each
+encoder. Studio rendering intentionally keeps one sequential capture stream so
+frame ordering, progress, and cancellation stay deterministic.
 
 ## Deterministic asset preflight
 

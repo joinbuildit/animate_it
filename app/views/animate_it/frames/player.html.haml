@@ -39,6 +39,19 @@
         display: block !important;
         visibility: visible;
       }
+      .animate-it-public-play {
+        position: fixed;
+        right: 16px;
+        bottom: 16px;
+        z-index: 2147483647;
+        border: 0;
+        border-radius: 999px;
+        padding: 10px 18px;
+        background: rgba(0, 0, 0, 0.78);
+        color: #fff;
+        font: 600 14px/1 system-ui, sans-serif;
+        cursor: pointer;
+      }
   %body
     .animate-it-stage
       = @composition.render_structure(self, props: @props)
@@ -46,6 +59,23 @@
       = render_page_stylesheets
     - if respond_to?(:render_component_stylesheets)
       = render_component_stylesheets
-    %script{ type: "application/json", data: { animate_it_tracks: true } }
+    - if @public_player
+      - @audio_segments.each_with_index do |segment, index|
+        %audio{ data: {
+                  from_frame: segment.from_frame,
+                  duration_frames: segment.duration_frames || (@composition.duration_in_frames - segment.from_frame),
+                  gain: segment.source[:gain],
+                  loop: segment.source[:loop] ? "true" : "false"
+                },
+                preload: "auto",
+                src: public_audio_path(index),
+                style: "display:none" }
+      %button.animate-it-public-play{ type: "button", data: { animate_it_play: true }, aria: { pressed: "false" } } Play
+    %script{ type: "application/json", data: {
+      animate_it_tracks: true,
+      animate_it_transport: @public_player ? "true" : "false",
+      animate_it_autoplay: @public_player_options&.fetch(:autoplay, false) ? "true" : "false",
+      animate_it_loop: @public_player_options&.fetch(:loop, true) ? "true" : "false"
+    } }
       != ERB::Util.json_escape(@track_document.to_json)
     = javascript_tag AnimateIt::Runtime.source.html_safe

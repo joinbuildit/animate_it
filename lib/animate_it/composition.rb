@@ -15,6 +15,7 @@ module AnimateIt
         subclass.instance_variable_set(:@duration_in_frames, 30)
         subclass.instance_variable_set(:@output_format, :webm)
         subclass.instance_variable_set(:@verification_props, [{}].freeze)
+        subclass.instance_variable_set(:@public_player_options, nil)
         super
       end
 
@@ -74,6 +75,22 @@ module AnimateIt
 
       def client_driven?
         @client_driven == true
+      end
+
+      # Explicitly expose this composition through the production-safe public
+      # player endpoint. Studio, frame, filmstrip, props, and render endpoints
+      # remain local-only. Public playback always uses schema-default props.
+      def public_player!(autoplay: false, loop: true)
+        client_driven!
+        @public_player_options = { autoplay: autoplay == true, loop: loop == true }.freeze
+      end
+
+      def public_player?
+        @public_player_options.present?
+      end
+
+      def public_player_options
+        @public_player_options || { autoplay: false, loop: true }.freeze
       end
 
       def verification_props(*variants)

@@ -16,6 +16,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   request for every frame.
 - `client_driven!`, `structure_epochs`, `track_vars`, `text_track`,
   `verification_props`, and deterministic native CSS/Web Animation seeking.
+- Secure production frontend playback with explicit `public_player!`
+  allowlisting, a responsive `animate_it_player` iframe helper, autonomous
+  Play/Pause/loop transport, and synchronized byte-range audio.
 - Player-versus-filmstrip verification with RGB and alpha comparison, props
   matrices, structural-boundary sampling, and an every-frame `verify_all` gate.
 - Checksum and provenance preflight for host-owned composition source assets.
@@ -26,6 +29,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Animated outputs preserve declared audio trim, loop, gain, and partial-range
   alignment; GIF and PNG outputs remain silent.
 - PNG sequences are published to their declared destination directory.
+- Declared outputs covering the same frame range now share one browser capture
+  instead of repeating every screenshot for each output format.
+- Removed the no-op Studio render-concurrency settings; capture remains
+  sequential so ordering, progress, and cancellation are deterministic.
 
 ### Compatibility
 - Continued support for Ruby >= 3.3, Rails >= 7.2, HAML >= 6.3, HAML and ERB

@@ -2,6 +2,8 @@ module AnimateIt
   class RenderJob < ApplicationJob
     queue_as :default
 
+    # `_options` remains as a compatibility slot for render jobs serialized by
+    # releases that exposed concurrency settings but never applied them.
     def perform(render_id, composition_id, host, output_path, frames_dir, props = {}, _options = {})
       AnimateIt.load_compositions!
       composition = AnimateIt.registry.fetch(composition_id)

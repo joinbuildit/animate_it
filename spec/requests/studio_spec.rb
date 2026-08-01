@@ -36,4 +36,39 @@ RSpec.describe "AnimateIt Studio", type: :request do
 
     expect(response).to have_http_status(:not_found)
   end
+
+  context "when the engine is mounted in production" do
+    before do
+      allow(Rails.env).to receive(:local?).and_return(false)
+    end
+
+    it "exposes only explicitly public client players" do
+      get "#{mount}/compositions/client-runtime-spec/player"
+      expect(response).to have_http_status(:not_found)
+
+      get "#{mount}/public/compositions/dummy-motion/player"
+      expect(response).to have_http_status(:not_found)
+
+      get "#{mount}/public/compositions/client-runtime-spec/player"
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("data-animate-it-transport='true'")
+      expect(response.body).to include("data-animate-it-play")
+      expect(response.body).to include("/public/compositions/client-runtime-spec/audio/0")
+    end
+
+    it "serves byte ranges only for an allowlisted composition's declared audio" do
+      path = Rails.root.join("app/audio/spec/client-runtime.wav")
+      original = path.binread if path.file?
+      FileUtils.mkdir_p(path.dirname)
+      path.binwrite("public-player-audio")
+
+      get "#{mount}/public/compositions/client-runtime-spec/audio/0", headers: { "Range" => "bytes=0-3" }
+
+      expect(response).to have_http_status(:partial_content)
+      expect(response.headers["Accept-Ranges"]).to eq("bytes")
+      expect(response.body).to eq("publ")
+    ensure
+      original ? path.binwrite(original) : FileUtils.rm_f(path)
+    end
+  end
 end

@@ -41,6 +41,18 @@ RSpec.describe AnimateIt::Composition do
     expect(TestMotionComposition.duration_in_frames).to eq(60)
   end
 
+  it "requires an explicit public-player opt in and records playback options" do
+    public_composition = Class.new(described_class) do
+      id "public-motion"
+      public_player! autoplay: true, loop: false
+    end
+
+    expect(TestMotionComposition).not_to be_public_player
+    expect(public_composition).to be_public_player
+    expect(public_composition).to be_client_driven
+    expect(public_composition.public_player_options).to eq(autoplay: true, loop: false)
+  end
+
   it "builds local frame context for active timeline segments" do
     segment = TestMotionComposition.timeline.active_segments(35).first
     context = TestMotionComposition.frame_context(frame: 35, props: {}, segment:)

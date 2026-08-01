@@ -135,11 +135,40 @@ RSpec.describe AnimateIt::VideoRenderer do
     expect(video_renderer).to have_received(:encode_video).with(frame_count: 91, start_frame: 30)
   end
 
+  it "reuses a complete ordered capture without opening the browser again" do
+    video_renderer = renderer(:mp4)
+    FileUtils.mkdir_p(video_renderer.frames_dir)
+    2.times { |index| FileUtils.touch(video_renderer.frames_dir.join(format("frame-%05d.png", index))) }
+    allow(video_renderer).to receive(:capture_frames)
+    allow(video_renderer).to receive(:encode_video)
+
+    video_renderer.render(frame_range: 30..31, reuse_captured_frames: true)
+
+    expect(video_renderer).not_to have_received(:capture_frames)
+    expect(video_renderer).to have_received(:encode_video).with(frame_count: 2, start_frame: 30)
+  end
+
+  it "rejects an incomplete shared capture before encoding" do
+    video_renderer = renderer(:mp4)
+    FileUtils.mkdir_p(video_renderer.frames_dir)
+    FileUtils.touch(video_renderer.frames_dir.join("frame-00000.png"))
+    allow(video_renderer).to receive(:capture_frames)
+    allow(video_renderer).to receive(:encode_video)
+
+    expect { video_renderer.render(frame_range: 30..31, reuse_captured_frames: true) }
+      .to raise_error(AnimateIt::Error, /frame-00001\.png/)
+    expect(video_renderer).not_to have_received(:capture_frames)
+    expect(video_renderer).not_to have_received(:encode_video)
+  end
+
   it "encodes captured cancellation frames from the selected range start" do
     video_renderer = renderer(:mp4)
     FileUtils.mkdir_p(video_renderer.frames_dir)
-    3.times { |index| FileUtils.touch(video_renderer.frames_dir.join(format("frame-%05d.png", index))) }
-    allow(video_renderer).to receive(:capture_frames).and_return(:cancelled)
+    10.times { |index| FileUtils.touch(video_renderer.frames_dir.join(format("frame-%05d.png", index))) }
+    allow(video_renderer).to receive(:capture_frames) do
+      3.times { |index| FileUtils.touch(video_renderer.frames_dir.join(format("frame-%05d.png", index))) }
+      :cancelled
+    end
     allow(video_renderer).to receive(:encode_video)
 
     expect { video_renderer.render(frame_range: 30..120) }

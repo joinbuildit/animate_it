@@ -27,5 +27,9 @@ module AnimateIt
         AnimateIt.reload_compositions!
       end
     end
+
+    initializer "animate_it.embed_helper" do
+      ActiveSupport.on_load(:action_view) { include AnimateIt::EmbedHelper }
+    end
   end
 end

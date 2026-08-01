@@ -2,6 +2,7 @@
 class ClientRuntimeSpecVideo < AnimateIt::Composition
   id "client-runtime-spec"
   client_driven!
+  public_player!
   fps 10
   size 240, 120
   duration 18.frames

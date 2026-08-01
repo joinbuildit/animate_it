@@ -32,7 +32,7 @@ module AnimateIt
         output_path: @output_path
       )
       start_render(@render_id, @composition.id, request.base_url, @output_path.to_s, frames_dir(@render_id).to_s,
-                   preview_props, render_options)
+                   preview_props)
 
       render status: :accepted
     end
@@ -57,24 +57,10 @@ module AnimateIt
       path&.relative_path_from(Rails.root)&.to_s
     end
 
-    def render_options
-      {
-        "concurrency" => env_with_legacy("ANIMATE_IT_RENDER_CONCURRENCY", "RAILS_MOTION_RENDER_CONCURRENCY", "3").to_i,
-        "starts_per_second" => env_with_legacy("ANIMATE_IT_RENDER_STARTS_PER_SECOND",
-                                               "RAILS_MOTION_RENDER_STARTS_PER_SECOND", "2").to_f
-      }
-    end
-
-    # Prefer the new ANIMATE_IT_* name; fall back to the legacy RAILS_MOTION_*
-    # name for one release so existing setups don't break, then the default.
-    def env_with_legacy(new_key, legacy_key, default)
-      ENV[new_key].presence || ENV[legacy_key].presence || default
-    end
-
-    def start_render(render_id, composition_id, host, output_path, frame_dir, props, options)
+    def start_render(render_id, composition_id, host, output_path, frame_dir, props)
       Thread.new do
         Rails.application.executor.wrap do
-          RenderJob.perform_now(render_id, composition_id, host, output_path, frame_dir, props, options)
+          RenderJob.perform_now(render_id, composition_id, host, output_path, frame_dir, props)
         end
       end
     end
