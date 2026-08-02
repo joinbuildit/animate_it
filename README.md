@@ -32,6 +32,14 @@ It's built for indie hackers and Rails developers who want to promote their proj
 with polished product demos, launch clips, and social ads — reusing the UI they've
 already built, staying in Ruby, and skipping the whole "learn a video editor" detour.
 
+<p align="center">
+  <img src="assets/animate-it-demo.gif" alt="Product marketing video rendered with AnimateIt from Rails views and components" width="640">
+</p>
+
+<p align="center">
+  <em>Rendered from Rails views, ViewComponents, and deterministic browser animation tracks.</em>
+</p>
+
 ## Requirements
 
 - Ruby >= 3.3, Rails >= 7.2 (tested against Rails 7.2 and 8.1)
