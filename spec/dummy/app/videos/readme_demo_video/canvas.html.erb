@@ -1,0 +1,210 @@
+<style>
+  .readme-demo {
+    position: relative;
+    width: 640px;
+    height: 360px;
+    overflow: hidden;
+    box-sizing: border-box;
+    background:
+      radial-gradient(circle at 50% 36%, rgba(60, 224, 203, 0.11), transparent 38%),
+      linear-gradient(145deg, #111521 0%, #090b11 100%);
+    color: #eef2f4;
+    font-family: Inter, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  .readme-demo::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+    background-size: 32px 32px;
+    mask-image: linear-gradient(to bottom, black, transparent 72%);
+  }
+
+  .readme-demo__content {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    opacity: var(--scene-opacity, 1);
+  }
+
+  .readme-demo__brand {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    transform: scale(var(--logo-scale, 1));
+  }
+
+  .readme-demo__mark {
+    position: relative;
+    width: 72px;
+    height: 54px;
+  }
+
+  .readme-demo__chevron {
+    position: absolute;
+    top: 5px;
+    width: 34px;
+    height: 44px;
+    clip-path: polygon(0 0, 100% 50%, 0 100%);
+    background: #3ce0cb;
+    filter: drop-shadow(0 6px 16px rgba(60, 224, 203, 0.24));
+  }
+
+  .readme-demo__chevron--one {
+    left: 0;
+    opacity: 0.28;
+    transform: translateX(var(--chevron-one-x, 0));
+  }
+
+  .readme-demo__chevron--two {
+    left: 17px;
+    opacity: 0.56;
+    transform: translateX(var(--chevron-two-x, 0));
+  }
+
+  .readme-demo__chevron--three {
+    left: 34px;
+    transform: translateX(var(--chevron-three-x, 0));
+  }
+
+  .readme-demo__wordmark {
+    font-size: 54px;
+    font-weight: 800;
+    letter-spacing: -2.2px;
+    line-height: 1;
+    opacity: var(--wordmark-opacity, 1);
+    transform: translateY(var(--wordmark-y, 0));
+  }
+
+  .readme-demo__wordmark span {
+    color: #3ce0cb;
+  }
+
+  .readme-demo__tagline {
+    margin-top: 22px;
+    font-size: 29px;
+    font-weight: 650;
+    letter-spacing: -0.7px;
+    color: #cbd2dc;
+  }
+
+  .readme-demo__playback {
+    width: 430px;
+    margin-top: 28px;
+    padding: 14px 16px 13px;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 14px;
+    background: rgba(28, 33, 48, 0.86);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
+    box-sizing: border-box;
+    opacity: var(--playback-opacity, 1);
+    transform: translateY(var(--playback-y, 0));
+  }
+
+  .readme-demo__playback-labels {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    font-size: 10px;
+    font-weight: 750;
+    letter-spacing: 1.3px;
+    color: #929baa;
+  }
+
+  .readme-demo__percent {
+    color: #3ce0cb;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .readme-demo__track {
+    position: relative;
+    height: 7px;
+    overflow: visible;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .readme-demo__track-fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: var(--progress-width, 0%);
+    border-radius: inherit;
+    background: linear-gradient(90deg, #28d2bc, #64f0dc);
+    box-shadow: 0 0 14px rgba(60, 224, 203, 0.35);
+  }
+
+  .readme-demo__track-fill::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    right: -5px;
+    width: 11px;
+    height: 11px;
+    border: 2px solid #111521;
+    border-radius: 50%;
+    background: #eef2f4;
+    transform: translateY(-50%);
+    box-shadow: 0 0 0 3px rgba(60, 224, 203, 0.2);
+  }
+
+  .readme-demo__chips {
+    display: flex;
+    gap: 9px;
+    margin-top: 18px;
+    transform: translateY(var(--chips-y, 0));
+  }
+
+  .readme-demo__chip {
+    padding: 7px 11px 6px;
+    border: 1px solid rgba(60, 224, 203, 0.2);
+    border-radius: 999px;
+    background: rgba(60, 224, 203, 0.07);
+    color: #aeb8c5;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.7px;
+  }
+
+  .readme-demo__chip--one { opacity: var(--chip-one-opacity, 1); }
+  .readme-demo__chip--two { opacity: var(--chip-two-opacity, 1); }
+  .readme-demo__chip--three { opacity: var(--chip-three-opacity, 1); }
+</style>
+
+<div class="readme-demo">
+  <div class="readme-demo__content">
+    <div class="readme-demo__brand">
+      <div class="readme-demo__mark" aria-hidden="true">
+        <span class="readme-demo__chevron readme-demo__chevron--one"></span>
+        <span class="readme-demo__chevron readme-demo__chevron--two"></span>
+        <span class="readme-demo__chevron readme-demo__chevron--three"></span>
+      </div>
+      <div class="readme-demo__wordmark">Animate<span>It</span></div>
+    </div>
+
+    <div class="readme-demo__tagline"><%= @tagline %></div>
+
+    <div class="readme-demo__playback">
+      <div class="readme-demo__playback-labels">
+        <span>SEEKABLE BROWSER PLAYBACK</span>
+        <span class="readme-demo__percent" data-animate-text="progress"><%= @progress_label %></span>
+      </div>
+      <div class="readme-demo__track">
+        <div class="readme-demo__track-fill"></div>
+      </div>
+    </div>
+
+    <div class="readme-demo__chips">
+      <span class="readme-demo__chip readme-demo__chip--one">RUBY</span>
+      <span class="readme-demo__chip readme-demo__chip--two">RAILS VIEWS</span>
+      <span class="readme-demo__chip readme-demo__chip--three">MP4 · WEBM · GIF</span>
+    </div>
+  </div>
+</div>

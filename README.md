@@ -33,11 +33,11 @@ with polished product demos, launch clips, and social ads — reusing the UI the
 already built, staying in Ruby, and skipping the whole "learn a video editor" detour.
 
 <p align="center">
-  <img src="assets/animate-it-demo.gif" alt="Product marketing video rendered with AnimateIt from Rails views and components" width="640">
+  <img src="assets/animate-it-demo.gif" alt="AnimateIt turns a Ruby composition into smooth, seekable browser animation" width="640">
 </p>
 
 <p align="center">
-  <em>Rendered from Rails views, ViewComponents, and deterministic browser animation tracks.</em>
+  <em>A five-second Ruby composition rendered by AnimateIt's client-driven browser runtime.</em>
 </p>
 
 ## Requirements
