@@ -37,7 +37,10 @@ already built, staying in Ruby, and skipping the whole "learn a video editor" de
 </p>
 
 <p align="center">
-  <em>A five-second Ruby composition rendered by AnimateIt's client-driven browser runtime.</em>
+  <em>A five-second Ruby composition rendered by AnimateIt's client-driven browser runtime.</em><br>
+  <a href="https://github.com/joinbuildit/animate_it/blob/main/spec/dummy/app/videos/readme_demo_video.rb">View the Ruby composition</a>
+  ·
+  <a href="https://github.com/joinbuildit/animate_it/blob/main/spec/dummy/app/videos/readme_demo_video/canvas.html.erb">View the HTML/CSS template</a>
 </p>
 
 ## Requirements
