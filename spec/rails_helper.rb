@@ -26,5 +26,7 @@ RSpec.configure do |config|
     AnimateIt.register(DummyMotionVideo)
     AnimateIt.register(DummyErbVideo)
     AnimateIt.register(ClientRuntimeSpecVideo) if defined?(ClientRuntimeSpecVideo)
+    AnimateIt.register(ClientRuntimeMobileSpecVideo) if defined?(ClientRuntimeMobileSpecVideo)
+    AnimateIt.register(BrokenImageSpecVideo) if defined?(BrokenImageSpecVideo)
   end
 end

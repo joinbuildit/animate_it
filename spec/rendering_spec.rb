@@ -186,6 +186,141 @@ RSpec.describe "AnimateIt render pipeline", :render_smoke, type: :request do
     end
   end
 
+  it "loads, navigates, and swaps a responsive public embed without exposing its iframe" do
+    require "playwright"
+
+    with_browser(viewport: { width: 800, height: 700 }) do |context|
+      page = context.new_page
+      response = page.goto("#{server_host}/embed-spec", waitUntil: "networkidle")
+      expect(response).to be_ok
+      expect(page.locator("animate-it-embed iframe").count).to eq(0)
+
+      page.evaluate(<<~JS)
+        () => {
+          const host = document.querySelector("animate-it-embed");
+          const top = host.getBoundingClientRect().top + window.scrollY;
+          window.scrollTo(0, top - window.innerHeight + (host.offsetHeight * .4));
+        }
+      JS
+      page.wait_for_function('document.querySelector("animate-it-embed")?.dataset.playerReady === "true"')
+      expect(page.locator("animate-it-embed iframe").evaluate("element => element.contentWindow.AnimateItTransport.playing()"))
+        .to be(false)
+
+      page.locator("animate-it-embed").scroll_into_view_if_needed
+      page.wait_for_function('document.querySelector("animate-it-embed iframe").contentWindow.AnimateItTransport.playing()')
+      page.wait_for_function('getComputedStyle(document.querySelector(".animate-it-embed__poster")).opacity === "0"')
+      expect(page.locator('button[aria-label="Jump to Intro"]').get_attribute("aria-current")).to eq("step")
+      expect(page.locator("animate-it-embed iframe").get_attribute("aria-hidden")).to eq("true")
+      expect(page.locator("animate-it-embed iframe").get_attribute("tabindex")).to eq("-1")
+      expect(page.locator(".animate-it-embed__poster").evaluate("element => getComputedStyle(element).opacity")).to eq("0")
+      expect(page.locator(".animate-it-embed__shell").evaluate("element => getComputedStyle(element).opacity")).to eq("1")
+      expect(page.locator(".animate-it-embed__control").evaluate("element => [element.offsetWidth, element.offsetHeight]")).to eq([44, 44])
+
+      page.locator(".animate-it-embed__control").click
+      page.wait_for_function('!document.querySelector("animate-it-embed iframe").contentWindow.AnimateItTransport.playing()')
+      page.locator('button[aria-label="Jump to Details"]').click
+      page.wait_for_function(
+        'document.querySelector("animate-it-embed iframe").contentWindow.AnimateItTransport.currentFrame() === 5'
+      )
+      expect(page.locator('button[aria-label="Jump to Details"]').get_attribute("aria-current")).to eq("step")
+
+      page.evaluate(<<~JS)
+        () => window.postMessage({
+          namespace: "animate-it", event: "chapterchange",
+          detail: { frame: 17, chapter: "finish" }
+        }, window.location.origin)
+      JS
+      expect(page.locator('button[aria-label="Jump to Details"]').get_attribute("aria-current")).to eq("step")
+
+      page.evaluate(<<~JS)
+        () => document.querySelector("animate-it-embed iframe").contentWindow.postMessage({
+          namespace: "animate-it", command: "props", props: { secret: true }
+        }, window.location.origin)
+      JS
+      expect(page.locator("animate-it-embed iframe").evaluate("element => element.contentWindow.AnimateItTransport.currentFrame()"))
+        .to eq(5)
+
+      page.locator(".animate-it-embed__control").click
+      page.wait_for_function('document.querySelector("animate-it-embed iframe").contentWindow.AnimateItTransport.playing()')
+
+      page.evaluate(<<~JS)
+        () => {
+          Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
+          document.dispatchEvent(new Event("visibilitychange"));
+        }
+      JS
+      page.wait_for_function('!document.querySelector("animate-it-embed iframe").contentWindow.AnimateItTransport.playing()')
+      page.evaluate(<<~JS)
+        () => {
+          Object.defineProperty(document, "hidden", { configurable: true, get: () => false });
+          document.dispatchEvent(new Event("visibilitychange"));
+        }
+      JS
+      page.wait_for_function('document.querySelector("animate-it-embed iframe").contentWindow.AnimateItTransport.playing()')
+
+      page.evaluate("window.scrollTo(0, 0)")
+      page.wait_for_function('!document.querySelector("animate-it-embed iframe").contentWindow.AnimateItTransport.playing()')
+      page.locator("animate-it-embed").scroll_into_view_if_needed
+      page.wait_for_function('document.querySelector("animate-it-embed iframe").contentWindow.AnimateItTransport.playing()')
+      page.locator(".animate-it-embed__control").click
+      page.wait_for_function('!document.querySelector("animate-it-embed iframe").contentWindow.AnimateItTransport.playing()')
+
+      page.set_viewport_size(width: 400, height: 700)
+      page.wait_for_function(
+        'document.querySelector("animate-it-embed iframe")?.src.includes("client-runtime-mobile-spec")'
+      )
+      page.wait_for_function('document.querySelector("animate-it-embed")?.dataset.playerReady === "true"')
+      page.wait_for_function(
+        'document.querySelector("animate-it-embed iframe").contentWindow.AnimateItTransport.currentFrame() === 8'
+      )
+      geometry = page.evaluate(<<~JS)
+        () => {
+          const viewport = document.querySelector(".animate-it-embed__viewport").getBoundingClientRect();
+          const iframe = document.querySelector("animate-it-embed iframe").getBoundingClientRect();
+          return {
+            viewport: { width: viewport.width, height: viewport.height },
+            iframe: { left: iframe.left, right: iframe.right, top: iframe.top, bottom: iframe.bottom },
+            contained: iframe.left >= viewport.left - 1 && iframe.right <= viewport.right + 1 &&
+              iframe.top >= viewport.top - 1 && iframe.bottom <= viewport.bottom + 1
+          };
+        }
+      JS
+      expect(geometry.fetch("contained")).to be(true)
+      expect(geometry.dig("viewport", "width")).to be <= 400
+      expect(page.locator('.animate-it-chapters--mobile-carousel [data-chapter-position="current"]').count).to eq(1)
+    end
+
+    with_browser(viewport: { width: 400, height: 700 }) do |context|
+      page = context.new_page
+      page.emulate_media(reducedMotion: "reduce")
+      page.goto("#{server_host}/embed-spec", waitUntil: "networkidle")
+      page.locator("animate-it-embed").scroll_into_view_if_needed
+      page.wait_for_timeout(1_000)
+      expect(page.locator("animate-it-embed iframe").count).to eq(0)
+      expect(page.locator("animate-it-embed").get_attribute("data-reduced-motion")).to eq("true")
+    end
+  end
+
+  it "keeps the poster visible when a frame-zero image fails" do
+    require "playwright"
+
+    with_browser(viewport: { width: 800, height: 700 }) do |context|
+      page = context.new_page
+      response = page.goto("#{server_host}/embed-broken-spec", waitUntil: "networkidle")
+      expect(response).to be_ok
+      page.wait_for_function('document.querySelector("animate-it-embed")?.dataset.playerError === "true"')
+
+      presentation = page.evaluate(<<~JS)
+        () => ({
+          posterOpacity: getComputedStyle(document.querySelector(".animate-it-embed__poster")).opacity,
+          shellOpacity: getComputedStyle(document.querySelector(".animate-it-embed__shell")).opacity,
+          ready: document.querySelector("animate-it-embed").dataset.playerReady
+        })
+      JS
+      expect(presentation).to eq("posterOpacity" => "1", "shellOpacity" => "0", "ready" => "false")
+    end
+  end
+
   it "plays an allowlisted public composition without a Studio parent" do
     require "playwright"
     AnimateIt.load_compositions!
@@ -252,12 +387,12 @@ RSpec.describe "AnimateIt render pipeline", :render_smoke, type: :request do
     "http://127.0.0.1:#{@port}"
   end
 
-  def with_browser
+  def with_browser(viewport: { width: 240, height: 120 })
     cli = ENV.fetch("PLAYWRIGHT_CLI_EXECUTABLE_PATH", "npx playwright")
     Playwright.create(playwright_cli_executable_path: cli) do |playwright|
       browser = playwright.chromium.launch(headless: true)
       begin
-        context = browser.new_context(viewport: { width: 240, height: 120 })
+        context = browser.new_context(viewport:)
         yield context
       ensure
         browser.close

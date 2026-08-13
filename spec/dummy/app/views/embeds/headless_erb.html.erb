@@ -1,0 +1,7 @@
+<%= animate_it_embed("client-runtime-spec", poster: "/clapper.png") do |embed| %>
+  <%= embed.chapter_navigation(class: "product-demo-cards") do |chapter| %>
+    <%= chapter.button(class: "product-demo-card") do %>
+      <span><%= chapter.label %></span>
+    <% end %>
+  <% end %>
+<% end %>

@@ -20,6 +20,26 @@ jobs:
       - name: Rubocop
         run: bundle exec rubocop
 
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler-cache: true
+
+      - name: Install security scanners
+        run: gem install bundler-audit brakeman --no-document
+
+      - name: Audit dependencies
+        run: bundle-audit check --update
+
+      - name: Scan Rails engine
+        run: brakeman -q -p . --no-pager --confidence-level 2 --exit-on-warn --exit-on-error
+
   test:
     runs-on: ubuntu-latest
     strategy:
@@ -42,6 +62,12 @@ jobs:
       # ffmpeg, so these stay quick across the whole matrix.
       - name: RSpec (unit + request)
         run: bundle exec rspec --exclude-pattern "spec/rendering_spec.rb"
+
+      - name: Audit appraisal dependencies
+        run: |
+          gem install bundler-audit --no-document
+          bundle-audit check --update \
+            --gemfile-lock "gemfiles/${{ matrix.gemfile }}.gemfile.lock"
 
       # The end-to-end render smoke drives real Chromium + FFmpeg, so run it once
       # on the newest supported cell rather than on all four.

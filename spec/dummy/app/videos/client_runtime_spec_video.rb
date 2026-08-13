@@ -7,6 +7,12 @@ class ClientRuntimeSpecVideo < AnimateIt::Composition
   size 240, 120
   duration 18.frames
   structure_epochs 5, 11
+  beat :intro, at: 0, length: 5.frames
+  beat :details, at: 5.frames, length: 6.frames
+  beat :finish, at: 11.frames, length: 7.frames
+  chapter :intro, beat: :intro, label: "Intro", metadata: { thumbnail: "/intro.webp" }
+  chapter :details, beat: :details, label: "Details"
+  chapter :finish, beat: :finish, label: "Finish"
 
   class Scene < AnimateIt::Scene
     class << self
@@ -64,7 +70,13 @@ class ClientRuntimeSpecVideo < AnimateIt::Composition
                     "pulse", data: { css_animation_probe: true },
                     style: "animation:runtime-spec-pulse 1s linear infinite alternate"
                   ),
-                  reveal_words(:headline)
+                  reveal_words(:headline),
+                  view_context.animate_it_chapter_navigation(
+                    composition: self.class.composition_class,
+                    preset: :pills,
+                    hide_when_embedded: true,
+                    frame:
+                  )
                 ],
                 " "
               )

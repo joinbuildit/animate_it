@@ -1,0 +1,31 @@
+<style>
+  body { margin: 0; color: #253141; background: #f4f7f9; font-family: system-ui, sans-serif; }
+  .embed-spec-spacer { height: 720px; }
+  .embed-spec-spacer.is-showcase { display: none; }
+  .embed-spec-host { width: min(100%, 640px); margin: 0 auto 120px; }
+  .embed-spec-heading { padding: 24px 16px 18px; text-align: center; }
+  .embed-spec-heading h1 { margin: 0 0 6px; font-size: 24px; }
+  .embed-spec-heading p { margin: 0; color: #657180; }
+</style>
+<div class="embed-spec-spacer<%= " is-showcase" if params[:showcase] == "1" %>">Scroll to demo</div>
+<header class="embed-spec-heading">
+  <h1>Interactive product chapters</h1>
+  <p>Seekable, responsive, and rendered from Rails.</p>
+</header>
+<div class="embed-spec-host">
+  <%= animate_it_embed(
+    "client-runtime-spec",
+    poster: "/clapper.png",
+    variants: [
+      {
+        media: "(max-width: 479px)",
+        composition: "client-runtime-mobile-spec",
+        poster: "/clapper.png"
+      }
+    ],
+    navigation: { preset: :pills, mobile: :carousel },
+    load_when_visible: 0.25,
+    play_when_visible: 2.0 / 3,
+    title: "Interactive Animate It demo"
+  ) %>
+</div>

@@ -6,6 +6,33 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-08-13
+
+### Added
+- User-navigable `chapter` declarations backed by existing beats, with a
+  versioned player manifest and normalized progress/state variables.
+- `animate_it_embed`, a poster-first custom-element embed with responsive
+  composition variants, proportional scaling, readiness crossfade, visibility
+  playback, offscreen pausing, reduced-motion fallback, and accessible controls.
+- Headless Rails chapter builders for arbitrary controls plus optional desktop
+  and mobile-carousel pill presets and canvas-side chapter navigation.
+- Stable transport commands and `ready`, `framechange`, `chapterchange`, `play`,
+  `pause`, `ended`, and `error` events over a source-checked same-origin message
+  protocol.
+- Versioned, immutable JavaScript and CSS endpoints that work independently of
+  Stimulus and the host application's asset pipeline.
+
+### Changed
+- Public player readiness now waits for fonts, eager images, and two paint
+  frames. `AnimateItTransport` remains available as a compatibility alias.
+- Repository and package metadata now point at `joinbuildit/animate_it`.
+- Every automated GitHub release now publishes the matching curated changelog
+  section as its release description and fails safely when that entry is missing.
+
+### Compatibility
+- `animate_it_player`, track schema v2, existing compositions, Studio playback,
+  and video rendering remain backward compatible.
+
 ## [0.4.0] - 2026-08-01
 
 ### Added
@@ -96,7 +123,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `render_animate_it_video` executable and `animate_it:render` rake task.
 - `animate_it:install` generator.
 
-[Unreleased]: https://github.com/joinbuildit/animate_it/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/joinbuildit/animate_it/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/joinbuildit/animate_it/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/joinbuildit/animate_it/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/joinbuildit/animate_it/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/joinbuildit/animate_it/compare/v0.3.0...v0.3.1

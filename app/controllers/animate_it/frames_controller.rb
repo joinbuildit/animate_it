@@ -24,6 +24,9 @@ module AnimateIt
       @props = preview_props
       @track_document = @composition.track_document(props: @props)
       TrackDocumentSchema.validate!(@track_document)
+      @player_manifest = @composition.player_manifest
+      @embedded_player = false
+      @host_navigation = false
     end
   end
 end

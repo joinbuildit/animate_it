@@ -17,7 +17,7 @@ Gem::Specification.new do |spec|
     with polished product demos, launch clips, and social ads — without leaving
     Ruby, hiring an editor, or learning After Effects.
   DESC
-  spec.homepage    = "https://github.com/growth-constant/animate_it"
+  spec.homepage    = "https://github.com/joinbuildit/animate_it"
   spec.license     = "MIT"
   spec.required_ruby_version = ">= 3.3"
 

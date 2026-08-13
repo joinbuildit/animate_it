@@ -1,5 +1,8 @@
 !!!
-%html{ lang: "en" }
+%html{ lang: "en", data: {
+  animate_it_embedded: @embedded_player ? "true" : "false",
+  animate_it_host_navigation: @host_navigation ? "true" : "false"
+} }
   %head
     %title= "#{@composition.id} player (#{@composition.duration_in_frames} frames)"
     %meta{ name: "viewport", content: "width=#{@composition.width}, initial-scale=1" }
@@ -52,6 +55,12 @@
         font: 600 14px/1 system-ui, sans-serif;
         cursor: pointer;
       }
+      html[data-animate-it-host-navigation="true"] [data-animate-it-hide-when-embedded="true"] {
+        display: none !important;
+      }
+      html[data-animate-it-embedded="true"] .animate-it-public-play {
+        display: none !important;
+      }
   %body
     .animate-it-stage
       = @composition.render_structure(self, props: @props)
@@ -78,4 +87,6 @@
       animate_it_loop: @public_player_options&.fetch(:loop, true) ? "true" : "false"
     } }
       != ERB::Util.json_escape(@track_document.to_json)
+    %script{ type: "application/json", data: { animate_it_manifest: true } }
+      != ERB::Util.json_escape(@player_manifest.as_json.to_json)
     = javascript_tag AnimateIt::Runtime.source.html_safe

@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/growth-constant/animate_it/actions/workflows/ci.yml"><img src="https://github.com/growth-constant/animate_it/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/joinbuildit/animate_it/actions/workflows/ci.yml"><img src="https://github.com/joinbuildit/animate_it/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://rubygems.org/gems/animate_it"><img src="https://img.shields.io/gem/v/animate_it.svg" alt="Gem Version"></a>
   <img src="https://img.shields.io/badge/ruby-%3E%3D%203.3-CC342D.svg" alt="Ruby >= 3.3">
 </p>
@@ -174,6 +174,10 @@ endpoints, and public playback always uses the composition's default props.
 class HelloVideo < AnimateIt::Composition
   id "hello"
   public_player! autoplay: false, loop: true
+  beat :intro, at: 0, length: 45
+  beat :details, at: 45, length: 45
+  chapter :intro, beat: :intro, label: "Intro"
+  chapter :details, beat: :details, label: "Details"
   # ...
 end
 ```
@@ -190,9 +194,74 @@ mount AnimateIt::Engine, at: AnimateIt.config.mount_path
 <%= animate_it_player "hello", title: "Hello product demo" %>
 ```
 
-The iframe renders each structural layer once and advances entirely in the
-browser. Audio-capable players fall back to the visible Play button when the
-browser blocks autoplay.
+`animate_it_player` remains the low-level responsive iframe. For a complete
+production embed with accessible chapter navigation, a poster-first handoff,
+visibility playback, reduced-motion behavior, and offscreen pausing, use:
+
+```erb
+<%= animate_it_embed(
+  "hello",
+  poster: image_path("hello.webp"),
+  variants: [
+    {
+      media: "(max-width: 767px)",
+      composition: "hello-mobile",
+      poster: image_path("hello-mobile.webp")
+    }
+  ],
+  navigation: { preset: :pills, mobile: :carousel },
+  load_when_visible: 0.25,
+  play_when_visible: 2.0 / 3
+) %>
+```
+
+Responsive compositions may use different sizes and chapter frames, but must
+declare the same ordered chapter names and labels. The embed swaps by media
+query and restores the current chapter by name.
+
+The pill rail is optional. Build cards, tabs, thumbnails, dots, or custom SVG
+with the headless Rails builder:
+
+```erb
+<%= animate_it_embed("hello", poster: image_path("hello.webp")) do |embed| %>
+  <%= embed.chapter_navigation(class: "product-demo-cards") do |chapter| %>
+    <%= chapter.button(class: "product-demo-card") do %>
+      <strong><%= chapter.label %></strong>
+    <% end %>
+  <% end %>
+<% end %>
+```
+
+Every control receives `data-chapter-state`, `data-chapter-position`, and the
+normalized CSS variables `--animate-it-chapter-progress`,
+`--animate-it-chapter-active`, and `--animate-it-chapter-complete`. The player
+emits `animateit:ready`, `animateit:framechange`, `animateit:chapterchange`,
+`animateit:play`, `animateit:pause`, `animateit:ended`, and `animateit:error`
+events. Host commands use a source-checked same-origin message
+boundary instead of reaching into iframe globals.
+
+For direct player integrations, `window.AnimateItPlayer` exposes `play`,
+`pause`, `toggle`, `seek`, `seekChapter`, `playing`, and `currentFrame`.
+`window.AnimateItTransport` remains an alias for compatibility with 0.4.
+
+To include the same chapter visualization in Studio and rendered media:
+
+```erb
+<%= animate_it_chapter_navigation preset: :pills, hide_when_embedded: true %>
+```
+
+The iframe still renders each structural layer once and advances entirely in
+the browser. Audio-capable players fall back to the visible Play button when
+the browser blocks autoplay.
+
+### Migrating a custom iframe controller
+
+Replace application-owned iframe scaling, `IntersectionObserver`, poster
+crossfade, breakpoint swapping, frame polling, and `contentWindow` transport
+calls with `animate_it_embed`. Keep application CSS by overriding the documented
+`--animate-it-*` tokens or render completely custom chapter controls through the
+headless builder. Continue using `animate_it_player` when the application truly
+needs to own the entire lifecycle.
 
 ### HAML or ERB
 
