@@ -74,6 +74,125 @@ mount AnimateIt::Engine, at: AnimateIt.config.mount_path if Rails.env.local?
 
 Visit **http://localhost:3000/animate_it** to open the Studio.
 
+## Quick examples
+
+These examples use one small composition so you can see the complete path from
+Ruby to a production Rails page without starting from the larger reference
+example below.
+
+### Fade and move an element
+
+Create a composition with two beats. `track_vars` calculates ordinary CSS
+custom properties from the current frame, so the template stays plain HTML and
+CSS.
+
+```ruby
+# app/videos/welcome_video.rb
+class WelcomeVideo < AnimateIt::Composition
+  id "welcome"
+  client_driven!
+  public_player! autoplay: false, loop: true
+
+  fps 30
+  size 1200, 630
+  duration 4.seconds
+
+  beat :intro, at: 0, length: 60
+  beat :details, at: 60, length: 60
+
+  chapter :intro, beat: :intro, label: "Welcome"
+  chapter :details, beat: :details, label: "Details"
+
+  class Scene < AnimateIt::Scene
+    track_vars :root do
+      {
+        title_opacity: at_global([0, 24], [0, 1]),
+        title_y: "#{at_global([0, 24], [20, 0])}px"
+      }
+    end
+
+    def body
+      absolute_fill(vars: :root) { render_scene_template("canvas") }
+    end
+  end
+
+  scene Scene
+end
+```
+
+```haml
+-# app/videos/welcome_video/canvas.html.haml
+:css
+  .welcome-title {
+    opacity: var(--title-opacity);
+    transform: translateY(var(--title-y));
+    font: 700 72px/1.1 system-ui;
+  }
+
+.welcome-title Welcome to our product
+```
+
+Open `/animate_it/compositions/welcome` in development to scrub through the
+frames. The animation is deterministic: seeking back to frame 12 always
+produces the same opacity and position.
+
+### Put it on a Rails page
+
+Mount the engine in every environment where the allowlisted public player
+should work:
+
+```ruby
+# config/routes.rb
+mount AnimateIt::Engine, at: "/animate_it"
+```
+
+Then add the poster-first player to any ERB view. The built-in pill preset makes
+the two chapters clickable and keeps their progress synchronized with playback.
+
+```erb
+<%= animate_it_embed(
+  "welcome",
+  poster: image_path("welcome-poster.webp"),
+  navigation: { preset: :pills },
+  play_when_visible: 2.0 / 3
+) %>
+```
+
+For the smallest possible iframe without lifecycle or chapter controls, use:
+
+```erb
+<%= animate_it_player "welcome", title: "Welcome product demo" %>
+```
+
+### Use cards instead of pills
+
+Chapter navigation is headless. The same animation state can drive cards,
+tabs, thumbnails, timeline steps, or custom SVG instead of the pill preset:
+
+```erb
+<%= animate_it_embed("welcome", poster: image_path("welcome-poster.webp")) do |embed| %>
+  <%= embed.chapter_navigation(class: "demo-cards") do |chapter| %>
+    <%= chapter.button(class: "demo-card") do %>
+      <strong><%= chapter.label %></strong>
+      <span class="demo-card__progress"></span>
+    <% end %>
+  <% end %>
+<% end %>
+```
+
+```css
+.demo-card__progress {
+  display: block;
+  width: calc(var(--animate-it-chapter-progress) * 100%);
+  height: 3px;
+  margin-top: 0.5rem;
+  background: #28d2bc;
+}
+```
+
+Each button also receives `data-chapter-state="completed|current|upcoming"`, so
+you can style every state without adding JavaScript.
+
 ## Writing a composition
 
 Compositions live in `app/videos/`. They auto-register (via the `id "..."` DSL)
