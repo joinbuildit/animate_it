@@ -1,4 +1,9 @@
 AnimateIt::Engine.routes.draw do
+  get "assets/:version/embed.js", to: "embed_assets#javascript", as: :embed_javascript,
+                                  constraints: { version: /[0-9A-Za-z._-]+/ }
+  get "assets/:version/embed.css", to: "embed_assets#stylesheet", as: :embed_stylesheet,
+                                   constraints: { version: /[0-9A-Za-z._-]+/ }
+
   root "studio#index"
 
   get "public/compositions/:id/player", to: "public_players#show", as: :public_composition_player

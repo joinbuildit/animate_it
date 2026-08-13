@@ -29,7 +29,10 @@ module AnimateIt
     end
 
     initializer "animate_it.embed_helper" do
-      ActiveSupport.on_load(:action_view) { include AnimateIt::EmbedHelper }
+      ActiveSupport.on_load(:action_view) do
+        include AnimateIt::EmbedHelper
+        include AnimateIt::ChapterNavigationHelper
+      end
     end
   end
 end

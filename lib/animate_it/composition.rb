@@ -16,6 +16,7 @@ module AnimateIt
         subclass.instance_variable_set(:@output_format, :webm)
         subclass.instance_variable_set(:@verification_props, [{}].freeze)
         subclass.instance_variable_set(:@public_player_options, nil)
+        subclass.instance_variable_set(:@chapters, Chapters.new(subclass))
         super
       end
 
@@ -189,6 +190,20 @@ module AnimateIt
 
       def beats
         @beats ||= Beats.new(fps: fps)
+      end
+
+      # Public, user-navigable moments. Chapters reference existing beats so
+      # animation timing stays the single source of truth.
+      def chapter(name, beat:, label:, metadata: {})
+        chapters.add(name, beat:, label:, metadata:)
+      end
+
+      def chapters
+        @chapters ||= Chapters.new(self)
+      end
+
+      def player_manifest
+        PlayerManifest.new(self)
       end
 
       # ----- Outputs path helpers --------------------------------------

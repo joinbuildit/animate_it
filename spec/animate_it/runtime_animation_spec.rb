@@ -199,4 +199,79 @@ RSpec.describe AnimateIt::Runtime do
       "button" => "Play", "pressed" => "false"
     )
   end
+
+  it "derives normalized chapter progress and previous/current/next state at every frame" do
+    result = run_node(<<~JS)
+      const api = require(process.argv[1]);
+      const element = (name) => ({
+        tagName: "BUTTON", dataset: { animateItChapter: name }, attrs: {},
+        style: { values: {}, setProperty(key, value) { this.values[key] = value; } },
+        setAttribute(key, value) { this.attrs[key] = value; },
+        removeAttribute(key) { delete this.attrs[key]; }
+      });
+      const elements = [element("intro"), element("details"), element("finish")];
+      const state = api.createChapterState({ chapters: [
+        { name: "intro", startFrame: 0, durationFrames: 4 },
+        { name: "details", startFrame: 6, durationFrames: 4 },
+        { name: "finish", startFrame: 10, durationFrames: 2 }
+      ] }, { querySelectorAll() { return elements; } });
+      const snapshot = (frame) => {
+        const current = state.update(frame);
+        return {
+          frame, chapter: current.chapter && current.chapter.name, progress: current.progress,
+          elements: elements.map((el) => ({
+            name: el.dataset.animateItChapter, state: el.dataset.chapterState,
+            position: el.dataset.chapterPosition,
+            progress: el.style.values["--animate-it-chapter-progress"],
+            current: el.attrs["aria-current"] || null
+          }))
+        };
+      };
+      process.stdout.write(JSON.stringify([snapshot(2), snapshot(5), snapshot(6), snapshot(11)]));
+    JS
+
+    expect(result.dig(0, "chapter")).to eq("intro")
+    expect(result.dig(0, "progress")).to be_within(0.0001).of(2.0 / 3)
+    expect(result.dig(1, "progress")).to eq(1)
+    expect(result.dig(1, "elements", 0)).to include("state" => "current", "current" => "step")
+    expect(result.dig(2, "elements", 0)).to include("state" => "completed", "progress" => "1")
+    expect(result.dig(2, "elements", 1)).to include("state" => "current", "position" => "current")
+    expect(result.dig(3, "chapter")).to eq("finish")
+    expect(result.dig(3, "progress")).to eq(1)
+  end
+
+  it "emits stable transport lifecycle events without changing seek playback state" do
+    result = run_node(<<~JS)
+      const api = require(process.argv[1]);
+      let callback = null;
+      global.performance = { now: () => 0 };
+      global.requestAnimationFrame = (next) => { callback = next; return 1; };
+      global.cancelAnimationFrame = () => { callback = null; };
+      let frame = 0;
+      const events = [];
+      const player = {
+        duration: 20, fps: 10, currentFrame: () => frame,
+        setFrame(value) { frame = value; return frame; }
+      };
+      const transport = api.createTransport(player, [], {
+        loop: false,
+        onEvent(name, detail) { events.push([name, detail.frame]); }
+      });
+      (async () => {
+        await transport.play();
+        transport.seek(7);
+        const playingAfterSeek = transport.playing();
+        transport.pause();
+        transport.seek(2);
+        process.stdout.write(JSON.stringify({ events, playingAfterSeek, playingAfterPausedSeek: transport.playing(), frame }));
+      })();
+    JS
+
+    expect(result).to eq(
+      "events" => [["play", 0], ["pause", 7]],
+      "playingAfterSeek" => true,
+      "playingAfterPausedSeek" => false,
+      "frame" => 2
+    )
+  end
 end

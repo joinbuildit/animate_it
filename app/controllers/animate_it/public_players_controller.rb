@@ -13,9 +13,13 @@ module AnimateIt
       @props = {}
       @track_document = composition.track_document
       TrackDocumentSchema.validate!(@track_document)
+      @player_manifest = composition.player_manifest
       @audio_segments = audio_segments
       @public_player = true
-      @public_player_options = composition.public_player_options
+      @embedded_player = params[:embedded] == "1"
+      @host_navigation = params[:host_navigation] == "1"
+      @public_player_options = composition.public_player_options.merge(autoplay: false) if @embedded_player
+      @public_player_options ||= composition.public_player_options
       render "animate_it/frames/player"
     end
 
