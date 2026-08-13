@@ -1,6 +1,6 @@
 {
   "name": "animate-it-skills",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Claude Code / Agent Skills for the AnimateIt Rails gem — author videos, GIFs, and stills from your Rails app's own components and data. Run `npx animate-it-skills` to install into .claude/skills.",
   "bin": {
     "animate-it-skills": "bin/install-skills.js"

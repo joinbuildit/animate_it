@@ -34,5 +34,30 @@ module AnimateIt
         include AnimateIt::ChapterNavigationHelper
       end
     end
+
+    initializer "animate_it.action_controller_renderer" do
+      ActiveSupport.on_load(:action_controller) do
+        ActionController::Renderers.add :animate_it do |options, _|
+          renderer = AnimateIt::ImageRenderer.new(
+            composition: options.fetch(:composition),
+            frame: options.fetch(:frame, 0),
+            props: options.fetch(:props, {}),
+            host: request.base_url,
+            cache: options.fetch(:cache, true)
+          )
+
+          response.etag = renderer.etag
+          if request.fresh?(response)
+            self.status = :not_modified
+            self.content_type = "image/png"
+            ""
+          else
+            self.content_type = "image/png"
+            response.headers["Content-Disposition"] = "inline"
+            renderer.render
+          end
+        end
+      end
+    end
   end
 end

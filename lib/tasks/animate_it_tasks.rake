@@ -181,6 +181,7 @@ namespace :animate_it do
         step:,
         props:,
         output_dir:,
+        candidate_backend: ENV.fetch("ANIMATE_IT_VERIFY_BACKEND", "player").to_sym,
         ready_timeout: ENV.fetch("ANIMATE_IT_READY_TIMEOUT_MS", 30_000).to_i
       )
       puts "Verifying #{composition.id} variant #{variant_index + 1}/#{props_variants.size}: " \

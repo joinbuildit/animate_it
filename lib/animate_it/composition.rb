@@ -16,6 +16,7 @@ module AnimateIt
         subclass.instance_variable_set(:@output_format, :webm)
         subclass.instance_variable_set(:@verification_props, [{}].freeze)
         subclass.instance_variable_set(:@public_player_options, nil)
+        subclass.instance_variable_set(:@servo_compatible, false)
         subclass.instance_variable_set(:@chapters, Chapters.new(subclass))
         super
       end
@@ -76,6 +77,19 @@ module AnimateIt
 
       def client_driven?
         @client_driven == true
+      end
+
+      # Marks a client-driven composition as eligible for the experimental
+      # Servo capture backend. Servo renders the same player document as
+      # Chromium; it does not interpret composition tracks independently.
+      def servo_compatible!
+        raise ArgumentError, "servo_compatible! requires client_driven!" unless client_driven?
+
+        @servo_compatible = true
+      end
+
+      def servo_compatible?
+        @servo_compatible == true
       end
 
       # Explicitly expose this composition through the production-safe public

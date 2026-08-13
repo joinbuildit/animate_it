@@ -149,4 +149,46 @@ RSpec.describe AnimateIt::Verification do
         .with("(n) => window.__animateIt.setFrame(n)", arg: 3).twice
     end
   end
+
+  describe "Servo certification" do
+    let(:composition) do
+      class_double(
+        AnimateIt::Composition,
+        id: "servo-motion",
+        width: 100,
+        height: 100,
+        duration_in_frames: 10,
+        structure_layers: [],
+        servo_compatible?: true,
+        chapters: instance_double(AnimateIt::Chapters, as_json: [])
+      )
+    end
+
+    it "handles browser documents without the native animation API" do
+      servo_verification = described_class.new(
+        composition:,
+        host: "http://localhost:3000",
+        candidate_backend: :servo
+      )
+      page = instance_double(Playwright::Page)
+      allow(page).to receive(:evaluate).and_return(0)
+
+      expect { servo_verification.send(:ensure_servo_certifiable!, page) }.not_to raise_error
+      expect(page).to have_received(:evaluate).with(/typeof document\.getAnimations/)
+    end
+
+    it "rejects nondeterministic Servo PNG bytes" do
+      servo_verification = described_class.new(
+        composition:,
+        host: "http://localhost:3000",
+        candidate_backend: :servo
+      )
+      capturer = instance_double(AnimateIt::FrameCapturers::Servo)
+      allow(servo_verification).to receive(:servo_capturer).and_return(capturer)
+      allow(capturer).to receive(:capture_frame).and_return("same", "same", "changed", "same", "same")
+
+      expect { servo_verification.send(:ensure_servo_deterministic!, 0) }
+        .to raise_error(AnimateIt::Error, /different PNG bytes/)
+    end
+  end
 end

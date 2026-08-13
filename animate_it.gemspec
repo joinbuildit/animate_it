@@ -28,7 +28,8 @@ Gem::Specification.new do |spec|
   spec.metadata["rubygems_mfa_required"] = "true"
 
   spec.files = Dir.chdir(__dir__) do
-    Dir["{app,config,exe,lib}/**/*", "CHANGELOG.md", "MIT-LICENSE", "README.md"].select do |path|
+    Dir["{app,config,exe,lib}/**/*", "servo-renderer/{Cargo.lock,Cargo.toml,README.md,src/**/*}",
+        "CHANGELOG.md", "MIT-LICENSE", "README.md"].select do |path|
       File.file?(path)
     end
   end

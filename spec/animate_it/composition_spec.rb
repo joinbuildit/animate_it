@@ -53,6 +53,18 @@ RSpec.describe AnimateIt::Composition do
     expect(public_composition.public_player_options).to eq(autoplay: true, loop: false)
   end
 
+  it "requires client-driven rendering before opting into Servo" do
+    composition = Class.new(described_class)
+
+    expect { composition.servo_compatible! }
+      .to raise_error(ArgumentError, /requires client_driven/)
+
+    composition.client_driven!
+    composition.servo_compatible!
+
+    expect(composition).to be_servo_compatible
+  end
+
   it "builds local frame context for active timeline segments" do
     segment = TestMotionComposition.timeline.active_segments(35).first
     context = TestMotionComposition.frame_context(frame: 35, props: {}, segment:)

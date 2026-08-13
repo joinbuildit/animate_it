@@ -8,4 +8,8 @@ class EmbedsController < ActionController::Base
   def headless_erb; end
 
   def headless_haml; end
+
+  def image
+    render animate_it: { composition: "client-runtime-spec", frame: 3, props: {}, cache: true }
+  end
 end

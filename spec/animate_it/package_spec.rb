@@ -18,6 +18,8 @@ RSpec.describe "AnimateIt gem package" do
         "app/views/animate_it/frames/player.html.haml",
         "lib/animate_it/runtime/runtime.js",
         "lib/animate_it/verification.rb",
+        "servo-renderer/Cargo.toml",
+        "servo-renderer/src/main.rs",
         "README.md",
         "CHANGELOG.md",
         "MIT-LICENSE"

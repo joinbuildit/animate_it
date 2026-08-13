@@ -12,3 +12,4 @@
 Gemfile.lock
 gemfiles/*.gemfile.lock
 node_modules/
+/servo-renderer/target/

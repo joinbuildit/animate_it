@@ -11,7 +11,8 @@ module AnimateIt
       end
     end
 
-    attr_reader :composition, :host, :step, :threshold, :alpha_threshold, :output_dir, :props, :ready_timeout
+    attr_reader :composition, :host, :step, :threshold, :alpha_threshold, :output_dir, :props, :ready_timeout,
+                :candidate_backend
 
     def initialize(
       composition:,
@@ -22,7 +23,8 @@ module AnimateIt
       output_dir: nil,
       playwright_cli: nil,
       props: {},
-      ready_timeout: 30_000
+      ready_timeout: 30_000,
+      candidate_backend: :player
     )
       @composition = composition
       @host = host.delete_suffix("/")
@@ -33,6 +35,9 @@ module AnimateIt
       @playwright_cli = playwright_cli || ENV.fetch("PLAYWRIGHT_CLI_EXECUTABLE_PATH", "npx playwright")
       @props = props.to_h
       @ready_timeout = [ready_timeout.to_i, 1].max
+      @candidate_backend = candidate_backend.to_sym
+      raise ArgumentError, "candidate_backend must be :player or :servo" unless %i[player servo].include?(@candidate_backend)
+      raise Error, "Servo verification requires servo_compatible!" if @candidate_backend == :servo && !composition.servo_compatible?
     end
 
     def call
@@ -52,13 +57,21 @@ module AnimateIt
         )
         begin
           context = browser.new_context(viewport: { width: composition.width, height: composition.height })
-          legacy = open_page(context, "filmstrip")
-          candidate = open_page(context, "player")
+          reference_endpoint = candidate_backend == :servo ? "player" : "filmstrip"
+          reference = open_page(context, reference_endpoint)
+          candidate = open_page(context, "player") unless candidate_backend == :servo
+          ensure_servo_certifiable!(reference) if candidate_backend == :servo
+          ensure_servo_deterministic!(sample_frames.first) if candidate_backend == :servo
 
           sample_frames.each do |frame|
-            legacy_shot = screenshot(legacy, frame, "legacy")
-            candidate_shot = screenshot(candidate, frame, "player")
-            results << result_for(frame, legacy_shot, candidate_shot)
+            reference_label = candidate_backend == :servo ? "chromium-player" : "legacy"
+            reference_shot = screenshot(reference, frame, reference_label)
+            candidate_shot = if candidate_backend == :servo
+                               servo_screenshot(frame)
+                             else
+                               screenshot(candidate, frame, "player")
+                             end
+            results << result_for(frame, reference_shot, candidate_shot)
           end
         ensure
           browser&.close
@@ -74,6 +87,13 @@ module AnimateIt
       composition.structure_layers.each do |layer|
         [layer.from_frame, layer.to_frame].each do |edge|
           frames.push(edge - 1, edge, edge + 1)
+        end
+      end
+      if composition.respond_to?(:chapters)
+        composition.chapters.as_json.each do |chapter|
+          start_frame = chapter.fetch("startFrame")
+          end_frame = start_frame + chapter.fetch("durationFrames")
+          frames.push(start_frame - 1, start_frame, start_frame + 1, end_frame - 1, end_frame, end_frame + 1)
         end
       end
       frames.grep(0..max).sort.uniq
@@ -104,7 +124,7 @@ module AnimateIt
 
     def screenshot(page, frame, label)
       page.evaluate("(n) => window.__animateIt.setFrame(n)", arg: frame)
-      if label == "player"
+      if label.include?("player")
         page.evaluate(<<~JS)
           document.querySelectorAll(".animate-it-layer.is-active").forEach((el) => {
             el.classList.remove("is-active");
@@ -118,6 +138,41 @@ module AnimateIt
       path = output_dir.join(format("%<label>s-%<frame>05d.png", label:, frame:))
       page.screenshot(path: path.to_s, omitBackground: true)
       path
+    end
+
+    def servo_screenshot(frame)
+      bytes = servo_capturer.capture_frame(frame:, page_url: page_url("player"))
+      path = output_dir.join(format("servo-%05d.png", frame))
+      path.binwrite(bytes)
+      path
+    end
+
+    def servo_capturer
+      @servo_capturer ||= FrameCapturers.build(
+        composition:,
+        host:,
+        backend: :servo
+      )
+    end
+
+    def ensure_servo_certifiable!(page)
+      native_animation_count = page.evaluate(<<~JS.squish)
+        () => typeof document.getAnimations === "function" ?
+          document.getAnimations({ subtree: true }).length : 0
+      JS
+      return if native_animation_count.to_i.zero?
+
+      raise Error,
+            "Servo certification cannot verify #{native_animation_count} native CSS/Web Animations deterministically"
+    end
+
+    def ensure_servo_deterministic!(frame)
+      captures = 5.times.map do
+        servo_capturer.capture_frame(frame:, page_url: page_url("player"))
+      end
+      return if captures.uniq.one?
+
+      raise Error, "Servo returned different PNG bytes across five captures of frame #{frame}"
     end
 
     def page_url(endpoint)

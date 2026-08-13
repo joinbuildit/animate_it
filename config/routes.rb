@@ -10,6 +10,9 @@ AnimateIt::Engine.routes.draw do
   get "public/compositions/:id/audio/:index", to: "public_players#audio", as: :public_composition_audio,
                                               constraints: { index: /\d+/ }
 
+  get "internal/render_pages/:token", to: "render_pages#show", as: :internal_render_page,
+                                      constraints: { token: /[0-9A-Za-z_-]+/ }
+
   get "compositions/:id", to: "studio#show", as: :composition
   get "compositions/:id/frame/:frame", to: "frames#show", as: :composition_frame, constraints: { frame: /-?\d+/ }
   get "compositions/:id/filmstrip", to: "frames#filmstrip", as: :composition_filmstrip
