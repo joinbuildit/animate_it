@@ -32,13 +32,14 @@ module AnimateIt
 
     attr_reader :composition, :host, :output_path, :frames_dir, :playwright_cli, :output_format
 
-    def initialize(composition:, host:, output_path:, frames_dir: nil, playwright_cli: nil, format: nil)
+    def initialize(composition:, host:, output_path:, frames_dir: nil, playwright_cli: nil, format: nil, capture_backend: nil)
       @composition = composition
       @output_format = format || composition.output_format
       @host = host.delete_suffix("/")
       @output_path = Pathname(output_path)
       @frames_dir = Pathname(frames_dir || Rails.root.join("tmp/animate_it/#{composition.id}"))
       @playwright_cli = playwright_cli || ENV.fetch("PLAYWRIGHT_CLI_EXECUTABLE_PATH", DEFAULT_PLAYWRIGHT_CLI)
+      @capture_backend = capture_backend || AnimateIt.config.capture_backend
     end
 
     class CancelledError < AnimateIt::Error; end
@@ -87,42 +88,23 @@ module AnimateIt
       range.step(every_nth_frame).to_a
     end
 
-    # One Playwright browser, one navigation, N screenshots — all frames are
-    # rendered in a single filmstrip page and we just toggle which one is
-    # visible between captures via window.__animateIt.setFrame(n).
     def capture_frames(frame_list, props:, on_progress:, cancel_check:)
-      require "playwright" # development-only gem; lazy-loaded so deploy image boot doesn't fail
-      cancelled = false
+      frame_capturer.capture_frames(
+        frame_list:,
+        page_url: page_url(props:),
+        on_progress:,
+        cancel_check:
+      )
+    end
 
-      Playwright.create(playwright_cli_executable_path: playwright_cli) do |pw|
-        browser = pw.chromium.launch(headless: true, args: ["--disable-web-security"])
-        begin
-          context = browser.new_context(
-            viewport: { width: composition.width, height: composition.height }
-          )
-          page = context.new_page
-
-          page.goto(page_url(props:), waitUntil: "networkidle")
-          page.wait_for_function('document.documentElement.dataset.animateItReady === "1"')
-
-          frame_list.each_with_index do |frame, index|
-            if cancel_check&.call
-              cancelled = true
-              break
-            end
-
-            page.evaluate("(n) => window.__animateIt.setFrame(n)", arg: frame)
-            screenshot_path = frames_dir.join(format("frame-%05d.png", index))
-            page.screenshot(path: screenshot_path.to_s, omitBackground: true)
-
-            on_progress&.call(frame + 1, frame_list.size)
-          end
-        ensure
-          browser&.close
-        end
-      end
-
-      cancelled || cancel_check&.call ? :cancelled : :complete
+    def frame_capturer
+      @frame_capturer ||= FrameCapturers.build(
+        composition:,
+        host:,
+        frames_dir:,
+        playwright_cli:,
+        backend: @capture_backend
+      )
     end
 
     def page_url(props:)

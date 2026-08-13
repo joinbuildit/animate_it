@@ -6,6 +6,31 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-08-13
+
+### Added
+- Experimental, explicitly certified Servo capture through `servo_compatible!`,
+  with `:playwright`, `:servo`, and automatic fallback backends.
+- A localhost Rust worker that drives Servo's official headless WebDriver,
+  validates render origins and player manifests, streams batch progress, and
+  supports cancellation without changing the existing PNG/FFmpeg pipeline.
+- Controller-native PNG generation through `render animate_it:`, including
+  strict render props, short-lived opaque render tickets, ETags, and Rails cache
+  reuse.
+- Chromium-versus-Servo verification using the existing RGB and alpha PSNR
+  gates, including structural and chapter-boundary sampling.
+
+### Changed
+- Player readiness failures now expose `data-animate-it-error` so renderers can
+  distinguish broken assets from timeouts.
+- Browser capture is isolated behind a reusable frame-capturer interface while
+  preserving shared PNG captures, audio, progress, cancellation, and encoders.
+
+### Compatibility
+- Chromium remains the default. Servo is used automatically only by compositions
+  that explicitly call `servo_compatible!`, and operational failures fall back
+  to Playwright in `:auto` mode.
+
 ## [0.5.0] - 2026-08-13
 
 ### Added
@@ -123,7 +148,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `render_animate_it_video` executable and `animate_it:render` rake task.
 - `animate_it:install` generator.
 
-[Unreleased]: https://github.com/joinbuildit/animate_it/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/joinbuildit/animate_it/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/joinbuildit/animate_it/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/joinbuildit/animate_it/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/joinbuildit/animate_it/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/joinbuildit/animate_it/compare/v0.3.1...v0.3.2

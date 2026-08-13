@@ -203,6 +203,8 @@ and reload in development.
 class HelloVideo < AnimateIt::Composition
   id "hello"
   client_driven!
+  # Explicitly certify this composition before using the experimental Servo backend.
+  # servo_compatible!
   fps 30
   size 1080, 1080
   duration 3.seconds
@@ -446,8 +448,49 @@ AnimateIt.configure do |config|
   # compositions re-use host partials/components that expect their CSS. Names
   # are passed to `stylesheet_link_tag`. Default [].
   config.render_stylesheets = %w[application components/star-ratings]
+
+  # Optional Servo worker. :auto uses Servo only for compositions that call
+  # `servo_compatible!` and falls back to Playwright on worker failures.
+  config.capture_backend = :auto
+  config.servo_endpoint = "http://127.0.0.1:4178"
+  config.servo_allowed_origins = ["http://127.0.0.1:3000"]
+  config.servo_version = ENV.fetch("ANIMATE_IT_SERVO_VERSION", "0.4.0")
+
+  # Opt in to short-lived private render pages and PNG controller responses.
+  config.internal_rendering = Rails.env.local?
+  config.render_asset_origins = ["https://cdn.example.com"]
+  config.render_cache_version = ENV.fetch("ANIMATE_IT_RENDER_CACHE_VERSION", "development")
 end
 ```
+
+With internal rendering enabled, a controller can return a generated still:
+
+```ruby
+render animate_it: {
+  composition: "hello",
+  frame: 45,
+  props: { counter_start: 100 },
+  cache: true
+}
+```
+
+The response is an inline PNG with an ETag. Props are stored in a 60-second
+opaque cache ticket rather than the render URL. Unknown or incorrectly typed
+props are rejected, and asset props may use only relative URLs or configured
+origins. A shared, writable Rails cache is required.
+
+For local development with AnimateIt 0.6 installed, add the two optional
+processes below to the host application's `Procfile.dev`. The capture root must
+contain AnimateIt's normal `tmp/animate_it` frame directories.
+
+```procfile
+servo_engine: servoshell --headless --webdriver 7000 --window-size 1200x630 about:blank
+servo_worker: cargo run --manifest-path $(bundle show animate_it)/servo-renderer/Cargo.toml -- --allowed-origins http://127.0.0.1:3000 --capture-root $PWD/tmp/animate_it --webdriver-url http://127.0.0.1:7000
+```
+
+Servo is pinned to 0.4.0 for this experimental integration. The dedicated
+`Servo compatibility` workflow verifies the Rust protocol and performs an
+opt-in capture with the checksum-pinned official Servo binary.
 
 When one composition declares multiple formats for the same frame range,
 AnimateIt captures the ordered Chromium frames once and reuses them for each
@@ -485,6 +528,11 @@ ANIMATE_IT_PROPS_MATRIX_JSON='[{}, {"title":"Variant"}]' bin/rails animate_it:ve
 
 Verification requires a running server and writes comparison screenshots under
 `tmp/animate_it/verify`.
+
+To compare a `servo_compatible!` player with Servo instead of comparing the
+Chromium player with the legacy filmstrip, set
+`ANIMATE_IT_VERIFY_BACKEND=servo`. Certification also samples chapter
+boundaries and rejects compositions that depend on native CSS/Web Animations.
 
 ## Claude skill
 
