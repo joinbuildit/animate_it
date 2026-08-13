@@ -1,0 +1,39 @@
+# frozen_string_literal: true
+
+version = ARGV.fetch(0) do
+  warn "Usage: ruby bin/release_notes VERSION [CHANGELOG]"
+  exit 64
+end
+
+changelog_path = ARGV.fetch(1, File.expand_path("../CHANGELOG.md", __dir__))
+changelog = File.read(changelog_path)
+heading = /^## \[#{Regexp.escape(version)}\](?:\s+-\s+.+)?\s*$/
+match = changelog.match(heading)
+
+unless match
+  warn "CHANGELOG.md has no release description for #{version}"
+  exit 1
+end
+
+body_start = match.end(0)
+body_end = changelog.index(/^## \[/, body_start) || changelog.length
+description = changelog[body_start...body_end].strip
+
+if description.empty?
+  warn "CHANGELOG.md has an empty release description for #{version}"
+  exit 1
+end
+
+puts <<~MARKDOWN
+  ## Animate It #{version}
+
+  #{description}
+
+  ### Install
+
+  ```ruby
+  gem "animate_it", "~> #{version}"
+  ```
+
+  See the [full changelog](https://github.com/joinbuildit/animate_it/blob/main/CHANGELOG.md) for earlier releases and compatibility notes.
+MARKDOWN

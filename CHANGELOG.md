@@ -26,6 +26,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Public player readiness now waits for fonts, eager images, and two paint
   frames. `AnimateItTransport` remains available as a compatibility alias.
 - Repository and package metadata now point at `joinbuildit/animate_it`.
+- Every automated GitHub release now publishes the matching curated changelog
+  section as its release description and fails safely when that entry is missing.
 
 ### Compatibility
 - `animate_it_player`, track schema v2, existing compositions, Studio playback,
