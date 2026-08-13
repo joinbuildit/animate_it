@@ -1,6 +1,6 @@
 {
   "name": "animate-it-skills",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Claude Code / Agent Skills for the AnimateIt Rails gem — author videos, GIFs, and stills from your Rails app's own components and data. Run `npx animate-it-skills` to install into .claude/skills.",
   "bin": {
     "animate-it-skills": "bin/install-skills.js"
@@ -21,13 +21,13 @@
     "remotion"
   ],
   "license": "MIT",
-  "homepage": "https://github.com/growth-constant/animate_it#readme",
+  "homepage": "https://github.com/joinbuildit/animate_it#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/growth-constant/animate_it.git"
+    "url": "git+https://github.com/joinbuildit/animate_it.git"
   },
   "bugs": {
-    "url": "https://github.com/growth-constant/animate_it/issues"
+    "url": "https://github.com/joinbuildit/animate_it/issues"
   },
   "engines": {
     "node": ">=16.7"

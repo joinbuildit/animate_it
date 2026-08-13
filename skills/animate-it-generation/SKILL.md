@@ -1,6 +1,6 @@
 ---
 name: animate-it-generation
-description: Author animated videos, GIFs, and still images with the AnimateIt Rails gem — compositions written as a Ruby class + a HAML or ERB canvas, played by a deterministic browser track runtime, and rendered to MP4/WebM/GIF/PNG via Playwright + FFmpeg. Use when a Rails app needs an animated hero, a product demo, a launch clip, a social ad, or a still hero rendered from the app's own components and data. Covers the client-driven composition DSL (`client_driven!`, `track_vars`, `text_track`, `animate`, `beat`, and `outputs`), Studio, deterministic verification, embedding, real app partials, audio, and common gotchas.
+description: Author animated videos, interactive Rails embeds, GIFs, and still images with the AnimateIt Rails gem — compositions written as a Ruby class + a HAML or ERB canvas, played by a deterministic browser track runtime, and rendered to MP4/WebM/GIF/PNG via Playwright + FFmpeg. Use when a Rails app needs an animated hero, navigable product demo, launch clip, social ad, or still hero rendered from the app's own components and data. Covers chapters, responsive production embeds, the client-driven composition DSL, Studio, deterministic verification, real app partials, audio, and common gotchas.
 ---
 
 # AnimateIt — animation, video, GIF, and still generation
@@ -137,6 +137,7 @@ Class-level on `AnimateIt::Composition`:
 | `output_basename "..."` | Filename stem; defaults to `id`. |
 | `outputs do … end` | Per-format destinations — `mp4`, `webm`, `gif`, `mov`, `png_sequence`, `png frame: N`. Pass `to: "..."` to override a path. |
 | `beat :name, at:, length:` | Named time marker. Accepts frames, durations, or time strings. |
+| `chapter :name, beat:, label:` | Public, user-navigable stage backed by an existing beat. Optional `metadata:` supports custom controls. |
 | `props do … end` | Prop schema for parameterized renders (Studio prop editor). |
 | `verification_props({}, {...})` | Props variants checked by `verify` / `verify_all`. |
 | `structure_epochs 90, 180` | Frames where the DOM shape changes; each creates one structural layer. |
@@ -254,7 +255,48 @@ For a typical page hero, declare `mp4 / webm / gif / png frame: 0`: WebM gives t
 
 ## Embedding on a page
 
-Native `<video>` with a fallback chain and a poster:
+For a live, navigable frontend animation, opt the composition into public
+playback and declare chapters:
+
+```ruby
+public_player! autoplay: false
+beat :apply, at: 0, length: 90.frames
+beat :review, at: 90.frames, length: 120.frames
+chapter :apply, beat: :apply, label: "Apply"
+chapter :review, beat: :review, label: "Review"
+```
+
+Use `animate_it_embed` for production pages. It owns fixed-canvas scaling,
+poster readiness, visibility loading/playback, responsive variants, accessible
+Play/Pause and chapter controls, hidden-tab/offscreen pausing, and reduced-motion
+poster-only behavior:
+
+```erb
+<%= animate_it_embed(
+  "feature-hero",
+  poster: image_path("feature-hero.webp"),
+  variants: [{
+    media: "(max-width: 767px)",
+    composition: "feature-hero-mobile",
+    poster: image_path("feature-hero-mobile.webp")
+  }],
+  navigation: { preset: :pills, mobile: :carousel }
+) %>
+```
+
+The pill rail is a preset, not a limitation. Use the headless block API for
+cards, tabs, dots, thumbnails, vertical timelines, or custom SVG. Controls
+receive normalized chapter progress/state CSS variables and data attributes.
+Responsive variants must expose the same ordered chapter names and labels.
+Use `animate_it_player` only when the host application intentionally owns the
+full iframe lifecycle.
+
+For an identical noninteractive rail in Studio and exports, render
+`animate_it_chapter_navigation preset: :pills, hide_when_embedded: true` in the
+canvas. It is hidden only when the host embed already supplies navigation.
+
+For pre-rendered video instead, use native `<video>` with a fallback chain and
+a poster:
 
 ```erb
 <video autoplay loop muted playsinline preload="metadata"
